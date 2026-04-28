@@ -1,0 +1,1979 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Sahayak Setu - Detailed step-wise procedures for Indian government services and a curated list of official benefits, subsidies, and yojnas."
+    />
+    <title>Sahayak Setu | Government Services Guide</title>
+
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Favicon (Tab Icon) - Expanded for better browser support -->
+    <link
+      rel="icon"
+      href="logo.png"
+      type="image/jpeg"
+    />
+    <link
+      rel="shortcut icon"
+      href="logo.png"
+      type="image/jpeg"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="logo.png"
+    />
+
+    <!-- Typography -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <style>
+      /* =========================================
+       ELITE CSS ARCHITECTURE & VARIABLES
+       ========================================= */
+      :root {
+        /* Light Theme Colors */
+        --bg-base: #f8fafc;
+        --bg-surface: #ffffff;
+        --bg-surface-hover: #f1f5f9;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --border-light: #e2e8f0;
+        --border-strong: #cbd5e1;
+
+        /* Brand Colors */
+        --brand-blue: #1e3a5f;
+        --brand-saffron: #ff9933;
+        --brand-saffron-light: rgba(255, 153, 51, 0.1);
+        --brand-green: #138808;
+        --brand-green-light: #dcfce7;
+
+        /* Effects */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md:
+          0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        --shadow-xl:
+          0 20px 25px -5px rgba(0, 0, 0, 0.05),
+          0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        --shadow-glow: 0 0 20px rgba(255, 153, 51, 0.15);
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 20px;
+        --radius-full: 9999px;
+        --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      [data-theme="dark"] {
+        /* Dark Theme Colors */
+        --bg-base: #0b1120;
+        --bg-surface: #1e293b;
+        --bg-surface-hover: #334155;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-muted: #64748b;
+        --border-light: #334155;
+        --border-strong: #475569;
+
+        --brand-blue: #60a5fa;
+        --brand-saffron-light: rgba(255, 153, 51, 0.15);
+        --brand-green-light: rgba(19, 136, 8, 0.2);
+
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-base);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: var(--radius-full);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+      }
+
+      /* Base Reset */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-base);
+        color: var(--text-secondary);
+        line-height: 1.6;
+        padding-top: 80px;
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+        overflow-x: hidden;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: "Poppins", sans-serif;
+        color: var(--text-primary);
+        line-height: 1.2;
+        text-wrap: balance;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+      button {
+        border: none;
+        background: none;
+        font-family: inherit;
+        cursor: pointer;
+      }
+
+      *:focus-visible {
+        outline: 2px solid var(--brand-saffron);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
+      /* Scroll Progress */
+      #scroll-progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 0%;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--brand-saffron),
+          var(--brand-green)
+        );
+        z-index: 2000;
+        transition: width 0.1s ease;
+      }
+
+      /* =========================================
+       NAVIGATION
+       ========================================= */
+      .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(var(--bg-surface), 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border-light);
+        z-index: 1000;
+        transition: var(--transition);
+      }
+
+      .nav-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0.8rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Poppins", sans-serif;
+        font-weight: 800;
+        font-size: clamp(1.2rem, 2vw, 1.5rem);
+        color: var(--text-primary);
+        letter-spacing: -0.5px;
+      }
+
+      .brand-logo-small {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: var(--shadow-sm);
+        border: 2px solid var(--border-light);
+        transition: transform 0.3s ease;
+      }
+      .logo:hover .brand-logo-small {
+        transform: rotate(5deg) scale(1.05);
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-full);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        transition: var(--transition);
+      }
+      .icon-btn:hover {
+        background: var(--bg-surface-hover);
+        color: var(--brand-saffron);
+      }
+
+      .lang-switcher {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-surface);
+        padding: 6px 16px 6px 12px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--border-light);
+        transition: var(--transition);
+      }
+      .lang-switcher:hover {
+        border-color: var(--brand-saffron);
+      }
+      .lang-switcher i {
+        color: var(--brand-saffron);
+      }
+      .lang-switcher select {
+        background: transparent;
+        border: none;
+        font-family: "Inter", sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        outline: none;
+      }
+
+      /* =========================================
+       LAYOUT & CONTAINERS
+       ========================================= */
+      .container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+      }
+
+      /* Hero Section with Big Centered Logo */
+      .hero {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 4rem 1rem 5rem;
+        background: linear-gradient(
+          135deg,
+          var(--bg-surface) 0%,
+          var(--bg-base) 100%
+        );
+        border-radius: var(--radius-lg);
+        margin-bottom: 3rem;
+        border: 1px solid var(--border-light);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(
+          circle,
+          var(--brand-saffron-light) 0%,
+          transparent 50%
+        );
+        opacity: 0.5;
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* BIG CENTERED LOGO */
+      .hero-logo {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 5px solid var(--bg-surface);
+        box-shadow:
+          0 10px 25px rgba(0, 0, 0, 0.15),
+          0 0 0 1px var(--border-light);
+        margin-bottom: 1.5rem;
+        background-color: #000; /* Blends with your image background */
+        animation: floatLogo 4s ease-in-out infinite;
+      }
+
+      @keyframes floatLogo {
+        0% {
+          transform: translateY(0px);
+          box-shadow:
+            0 10px 25px rgba(0, 0, 0, 0.15),
+            0 0 0 1px var(--border-light);
+        }
+        50% {
+          transform: translateY(-10px);
+          box-shadow:
+            0 20px 30px rgba(255, 153, 51, 0.2),
+            0 0 0 1px var(--border-light);
+        }
+        100% {
+          transform: translateY(0px);
+          box-shadow:
+            0 10px 25px rgba(0, 0, 0, 0.15),
+            0 0 0 1px var(--border-light);
+        }
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: var(--radius-full);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+      }
+      .badge-pulse {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand-green);
+        box-shadow: 0 0 0 0 rgba(19, 136, 8, 0.7);
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(19, 136, 8, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 6px rgba(19, 136, 8, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(19, 136, 8, 0);
+        }
+      }
+
+      .hero h1 {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+      }
+      .hero p {
+        font-size: clamp(1rem, 1.5vw, 1.15rem);
+        color: var(--text-secondary);
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      /* Main Sections */
+      .section-card {
+        background: var(--bg-surface);
+        border-radius: var(--radius-lg);
+        padding: clamp(1.5rem, 4vw, 3rem);
+        box-shadow: var(--shadow-xl);
+        margin-bottom: 3rem;
+        border: 1px solid var(--border-light);
+        position: relative;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .section-header-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        background: var(--brand-saffron-light);
+        color: var(--brand-saffron);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+      }
+      .section-header h2 {
+        font-size: clamp(1.5rem, 3vw, 2rem);
+      }
+
+      /* =========================================
+       SERVICES (TIMELINE UI)
+       ========================================= */
+      .services-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.5fr;
+        gap: 3rem;
+      }
+      @media (max-width: 860px) {
+        .services-grid {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+      }
+
+      .service-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .styled-select {
+        width: 100%;
+        padding: 14px 20px;
+        border: 2px solid var(--border-light);
+        border-radius: var(--radius-md);
+        font-family: "Inter", sans-serif;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        background-color: var(--bg-surface);
+        cursor: pointer;
+        appearance: none;
+        transition: var(--transition);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        background-size: 16px;
+      }
+      .styled-select:focus {
+        border-color: var(--brand-saffron);
+        box-shadow: var(--shadow-glow);
+      }
+
+      /* Metadata Cards */
+      .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      .meta-card {
+        background: var(--bg-base);
+        border: 1px solid var(--border-light);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .meta-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--text-muted);
+      }
+      .meta-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .meta-value i {
+        color: var(--brand-saffron);
+      }
+      .meta-full {
+        grid-column: span 2;
+      }
+
+      /* Timeline */
+      .timeline-container {
+        background: var(--bg-base);
+        border-radius: var(--radius-md);
+        padding: 2rem;
+        border: 1px solid var(--border-light);
+      }
+      .timeline {
+        list-style: none;
+        position: relative;
+        margin-left: 1rem;
+        border-left: 2px solid var(--border-light);
+        padding-left: 2rem;
+      }
+      .timeline-item {
+        position: relative;
+        margin-bottom: 2rem;
+        animation: slideInRight 0.4s ease forwards;
+        opacity: 0;
+      }
+      .timeline-item:last-child {
+        margin-bottom: 0;
+      }
+      .timeline-item::before {
+        content: "";
+        position: absolute;
+        left: -2.4rem;
+        top: 0;
+        width: 1rem;
+        height: 1rem;
+        background: var(--bg-surface);
+        border: 3px solid var(--brand-saffron);
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px var(--bg-base);
+        z-index: 2;
+        transition: var(--transition);
+      }
+      .timeline-item:hover::before {
+        background: var(--brand-saffron);
+        transform: scale(1.2);
+      }
+      .timeline-content {
+        font-size: 1rem;
+        color: var(--text-primary);
+        padding-top: -2px;
+      }
+
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      /* =========================================
+       BENEFITS & SCHEMES
+       ========================================= */
+      .benefits-layout {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        gap: 2rem;
+      }
+      @media (max-width: 900px) {
+        .benefits-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Search Bar */
+      .search-wrapper {
+        position: relative;
+        margin-bottom: 1.5rem;
+      }
+      .search-wrapper i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+      }
+      .search-input {
+        width: 100%;
+        padding: 14px 16px 14px 44px;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-full);
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-family: "Inter", sans-serif;
+        font-size: 0.95rem;
+        transition: var(--transition);
+      }
+      .search-input:focus {
+        outline: none;
+        border-color: var(--brand-saffron);
+        box-shadow: var(--shadow-glow);
+        background: var(--bg-surface);
+      }
+
+      /* Sidebar Categories */
+      .category-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      @media (max-width: 900px) {
+        .category-sidebar {
+          flex-direction: row;
+          overflow-x: auto;
+          padding-bottom: 10px;
+          -webkit-overflow-scrolling: touch;
+        }
+        .category-sidebar::-webkit-scrollbar {
+          height: 4px;
+        }
+      }
+
+      .cat-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.95rem;
+        text-align: left;
+        transition: var(--transition);
+        white-space: nowrap;
+      }
+      .cat-btn:hover {
+        background: var(--bg-base);
+        color: var(--text-primary);
+      }
+      .cat-btn.active {
+        background: var(--brand-saffron-light);
+        color: var(--brand-saffron);
+        border-color: rgba(255, 153, 51, 0.2);
+        font-weight: 600;
+      }
+      .cat-btn i {
+        width: 20px;
+        text-align: center;
+        font-size: 1.1rem;
+      }
+
+      /* Schemes Grid */
+      .schemes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
+      }
+
+      .scheme-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        animation: fadeInUp 0.5s ease forwards;
+      }
+      .scheme-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--brand-saffron),
+          var(--brand-green)
+        );
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+      }
+      .scheme-card:hover {
+        box-shadow: var(--shadow-xl);
+        transform: translateY(-4px);
+        border-color: var(--border-strong);
+      }
+      .scheme-card:hover::after {
+        transform: scaleX(1);
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .scheme-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        gap: 10px;
+      }
+      .scheme-header h3 {
+        font-size: 1.15rem;
+        color: var(--text-primary);
+      }
+      .action-group {
+        display: flex;
+        gap: 8px;
+      }
+      .share-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-full);
+        background: var(--bg-base);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+        border: 1px solid var(--border-light);
+      }
+      .share-btn:hover {
+        background: var(--bg-surface-hover);
+        color: var(--brand-saffron);
+        border-color: var(--border-strong);
+      }
+
+      .scheme-desc {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        flex-grow: 1;
+        margin-bottom: 1.5rem;
+      }
+
+      .scheme-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1.2rem;
+        border-top: 1px solid var(--border-light);
+      }
+      .benefit-tag {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--brand-green);
+        background: var(--brand-green-light);
+        padding: 6px 10px;
+        border-radius: var(--radius-sm);
+      }
+      .official-link {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--brand-blue);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: var(--radius-full);
+        transition: var(--transition);
+      }
+      .official-link:hover {
+        background: var(--bg-base);
+        text-decoration: underline;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+        grid-column: 1 / -1;
+      }
+      .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+      }
+
+      /* =========================================
+       TOAST NOTIFICATIONS
+       ========================================= */
+      #toast-container {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 9999;
+        pointer-events: none;
+      }
+      .toast {
+        background: var(--text-primary);
+        color: var(--bg-surface);
+        padding: 12px 24px;
+        border-radius: var(--radius-full);
+        font-size: 0.9rem;
+        font-weight: 500;
+        font-family: "Inter", sans-serif;
+        box-shadow: var(--shadow-xl);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+      .toast.hide {
+        animation: toastOut 0.3s ease forwards;
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes toastOut {
+        from {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(20px) scale(0.9);
+        }
+      }
+
+      /* =========================================
+       FOOTER
+       ========================================= */
+      .footer {
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border-light);
+        padding: 4rem 1.5rem 2rem;
+        margin-top: 4rem;
+        text-align: center;
+      }
+      .footer-grid {
+        max-width: 1280px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 3rem;
+        text-align: left;
+        margin-bottom: 3rem;
+      }
+      .footer-col h4 {
+        font-size: 1.1rem;
+        margin-bottom: 1.2rem;
+        color: var(--text-primary);
+      }
+      .footer-col p,
+      .footer-col ul {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+      .footer-col ul {
+        list-style: none;
+      }
+      .footer-col ul li {
+        margin-bottom: 0.8rem;
+      }
+      .footer-col ul a:hover {
+        color: var(--brand-saffron);
+      }
+      .footer-bottom {
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-light);
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+      .footer-motif svg {
+        width: 32px;
+        height: 32px;
+        fill: var(--border-strong);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Scroll Progress Bar -->
+    <div id="scroll-progress"></div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" aria-live="polite"></div>
+
+    <!-- Navigation -->
+    <header class="navbar">
+      <div class="nav-container">
+        <a href="#" class="logo" aria-label="Sahayak Setu Home">
+          <img
+            src="logo.png"
+            alt="Sahayak Setu Logo"
+            class="brand-logo-small"
+          />
+          Sahayak Setu
+        </a>
+
+        <div class="nav-actions">
+          <!-- Theme Toggle -->
+          <button
+            id="themeToggle"
+            class="icon-btn"
+            aria-label="Toggle Dark Mode"
+            title="Toggle Theme"
+          >
+            <i class="fa-solid fa-moon"></i>
+          </button>
+
+          <!-- Language Switcher -->
+          <div class="lang-switcher">
+            <i class="fa-solid fa-globe"></i>
+            <select id="langSelect" aria-label="Select Language">
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="bn">বাংলা (Bengali)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="ta">தமிழ் (Tamil)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Hero Banner with Big Centered Logo -->
+      <section class="hero" aria-labelledby="t-hero-title">
+        <div class="hero-content">
+          <!-- HUGE CENTERED LOGO -->
+          <img
+            src="logo.png"
+            alt="Sahayak Setu Emblem"
+            class="hero-logo"
+          />
+
+          <div class="badge">
+            <span class="badge-pulse"></span>
+            <span id="t-hero-badge">Updated April 2026</span>
+          </div>
+          <h1 id="t-hero-title">Empowering Citizens with Information</h1>
+          <p id="t-hero-desc">
+            Detailed step-by-step procedures for government responsibilities and
+            a curated list of official benefits, subsidies, and scholarships.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section 1: Services -->
+      <article class="section-card" aria-labelledby="t-sec1-title">
+        <header class="section-header">
+          <div class="section-header-icon">
+            <i class="fa-solid fa-clipboard-check"></i>
+          </div>
+          <h2 id="t-sec1-title">Government Services Guide</h2>
+        </header>
+
+        <div class="services-grid">
+          <div class="service-controls">
+            <div>
+              <label
+                for="serviceDropdown"
+                class="meta-label"
+                id="t-sec1-label"
+                style="margin-bottom: 8px; display: block"
+                >Select a service:</label
+              >
+              <select
+                id="serviceDropdown"
+                class="styled-select"
+                aria-label="Select Government Service"
+              ></select>
+            </div>
+
+            <div class="meta-grid" id="serviceMetaDisplay">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+
+          <div class="timeline-container">
+            <h3
+              id="t-procedure-title"
+              style="margin-bottom: 1.5rem; font-size: 1.2rem"
+            >
+              Step-by-Step Procedure
+            </h3>
+            <ul class="timeline" id="stepsDisplay">
+              <!-- Steps injected via JS -->
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Section 2: Benefits -->
+      <article class="section-card" aria-labelledby="t-sec2-title">
+        <header class="section-header">
+          <div class="section-header-icon">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+          </div>
+          <h2 id="t-sec2-title">Schemes & Benefits by Category</h2>
+        </header>
+
+        <div class="benefits-layout">
+          <aside>
+            <div class="search-wrapper">
+              <i class="fa-solid fa-search"></i>
+              <input
+                type="text"
+                id="schemeSearch"
+                class="search-input"
+                placeholder="Search schemes..."
+                aria-label="Search Schemes"
+              />
+            </div>
+            <nav
+              class="category-sidebar"
+              id="categoryButtonsContainer"
+              aria-label="Scheme Categories"
+            >
+              <!-- Category buttons injected via JS -->
+            </nav>
+          </aside>
+
+          <div
+            class="schemes-grid"
+            id="schemesGridContainer"
+            aria-live="polite"
+          >
+            <!-- Scheme cards injected via JS -->
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4 id="t-footer-about">About Sahayak Setu</h4>
+          <p id="t-footer-desc">
+            An independent initiative to bridge the information gap and help
+            Indian citizens access government services, subsidies, and
+            scholarships effortlessly.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4 id="t-footer-links">Quick Links</h4>
+          <ul>
+            <li>
+              <a href="https://www.india.gov.in/" target="_blank" rel="noopener"
+                >National Portal of India</a
+              >
+            </li>
+            <li>
+              <a href="https://www.mygov.in/" target="_blank" rel="noopener"
+                >MyGov Platform</a
+              >
+            </li>
+            <li>
+              <a href="https://uidai.gov.in/" target="_blank" rel="noopener"
+                >Aadhaar Portal</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 id="t-footer-legal">Legal & Disclaimer</h4>
+          <p id="t-footer-disc-text">
+            Curated for informational purposes. We do not collect personal data.
+            Always verify details on official
+            <strong style="color: var(--brand-saffron)">gov.in</strong> or
+            <strong style="color: var(--brand-saffron)">nic.in</strong> portals.
+          </p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-motif">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <circle cx="50" cy="50" r="8" fill="currentColor" />
+            <line
+              x1="50"
+              y1="50"
+              x2="50"
+              y2="5"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="50"
+              y2="95"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="5"
+              y2="50"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="95"
+              y2="50"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="18"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="82"
+              y2="82"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="18"
+              y2="82"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="50"
+              y1="50"
+              x2="82"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+          </svg>
+        </div>
+        <p>&copy; 2026 Sahayak Setu. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      /* =========================================
+       ELITE JS ARCHITECTURE
+       ========================================= */
+
+      const State = {
+        lang: "en",
+        theme: localStorage.getItem("theme") || "light",
+        category: "farmer",
+        searchQuery: "",
+      };
+
+      const Toast = {
+        show(message, icon = "fa-check-circle") {
+          const container = document.getElementById("toast-container");
+          const toast = document.createElement("div");
+          toast.className = "toast";
+          toast.innerHTML = `<i class="fa-solid ${icon}" style="color: var(--brand-saffron)"></i> ${message}`;
+          container.appendChild(toast);
+
+          setTimeout(() => {
+            toast.classList.add("hide");
+            toast.addEventListener("animationend", () => toast.remove());
+          }, 3000);
+        },
+      };
+
+      const i18n = {
+        en: {
+          "t-hero-title": "Empowering Citizens with Information",
+          "t-hero-desc":
+            "Detailed step-by-step procedures for government responsibilities and a curated list of official benefits, subsidies, and scholarships.",
+          "t-hero-badge": "Updated April 2026",
+          "t-sec1-title": "Government Services Guide",
+          "t-sec1-label": "Select a service:",
+          "t-procedure-title": "Step-by-Step Procedure",
+          "t-sec2-title": "Schemes & Benefits Explorer",
+          "btn-apply": "Official Portal",
+          "t-search": "Search schemes...",
+          "t-time": "Est. Time",
+          "t-cost": "Fees/Cost",
+          "t-docs": "Key Documents",
+          "t-empty": "No schemes found for this search.",
+          "toast-lang": "Language changed to English",
+          "toast-copy": "Official link copied to clipboard!",
+          "t-footer-about": "About Sahayak Setu",
+          "t-footer-desc":
+            "An independent initiative to bridge the information gap and help Indian citizens access government services, subsidies, and scholarships effortlessly.",
+          "t-footer-links": "Quick Links",
+          "t-footer-legal": "Legal & Disclaimer",
+          "t-footer-disc-text":
+            "Curated for informational purposes. We do not collect personal data. Always verify details on official gov.in or nic.in portals.",
+        },
+        hi: {
+          "t-hero-title": "सूचना के साथ नागरिकों का सशक्तिकरण",
+          "t-hero-desc":
+            "सरकारी जिम्मेदारियों के लिए विस्तृत चरण-दर-चरण प्रक्रियाएं और आधिकारिक लाभों, सब्सिडी और छात्रवृत्ति की सूची।",
+          "t-hero-badge": "अद्यतित अप्रैल 2026",
+          "t-sec1-title": "सरकारी सेवाएं मार्गदर्शक",
+          "t-sec1-label": "एक सेवा चुनें:",
+          "t-procedure-title": "चरण-दर-चरण प्रक्रिया",
+          "t-sec2-title": "योजनाएं और लाभ एक्सप्लोरर",
+          "btn-apply": "आधिकारिक पोर्टल",
+          "t-search": "योजनाएं खोजें...",
+          "t-time": "अनुमानित समय",
+          "t-cost": "शुल्क/लागत",
+          "t-docs": "मुख्य दस्तावेज़",
+          "t-empty": "इस खोज के लिए कोई योजना नहीं मिली।",
+          "toast-lang": "भाषा बदलकर हिंदी कर दी गई है",
+          "toast-copy": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
+          "t-footer-about": "सहायक सेतु के बारे में",
+          "t-footer-desc":
+            "भारतीय नागरिकों को बिना किसी परेशानी के सरकारी सेवाओं, सब्सिडी और छात्रवृत्ति तक पहुँचने में मदद करने के लिए एक स्वतंत्र पहल।",
+          "t-footer-links": "महत्वपूर्ण लिंक",
+          "t-footer-legal": "कानूनी और अस्वीकरण",
+          "t-footer-disc-text":
+            "सूचनात्मक उद्देश्यों के लिए। हम व्यक्तिगत डेटा एकत्र नहीं करते हैं। हमेशा gov.in पोर्टल पर सत्यापन करें।",
+        },
+        bn: {
+          "t-hero-title": "তথ্যের মাধ্যমে নাগরিকদের ক্ষমতায়ন",
+          "t-hero-desc":
+            "সরকারি দায়িত্বের জন্য বিস্তারিত ধাপে ধাপে পদ্ধতি এবং সরকারী সুবিধা, ভর্তুকি এবং বৃত্তির তালিকা।",
+          "t-hero-badge": "আপডেট এপ্রিল 2026",
+          "t-sec1-title": "সরকারি পরিষেবা গাইড",
+          "t-sec1-label": "একটি পরিষেবা চয়ন করুন:",
+          "t-procedure-title": "ধাপে ধাপে পদ্ধতি",
+          "t-sec2-title": "স্কিম এবং সুবিধা এক্সপ্লোরার",
+          "btn-apply": "অফিসিয়াল পোর্টাল",
+          "t-search": "স্কিম খুঁজুন...",
+          "t-time": "আনুমানিক সময়",
+          "t-cost": "ফি/খরচ",
+          "t-docs": "প্রয়োজনীয় নথিপত্র",
+          "t-empty": "কোন স্কিম পাওয়া যায়নি।",
+          "toast-lang": "ভাষা বাংলা করা হয়েছে",
+          "toast-copy": "লিঙ্ক কপি করা হয়েছে!",
+          "t-footer-about": "সহায়ক সেতু সম্পর্কে",
+          "t-footer-desc":
+            "ভারতীয় নাগরিকদের সরকারি পরিষেবা, ভর্তুকি এবং স্কলারশিপ সহজে পেতে সাহায্য করার জন্য একটি স্বাধীন উদ্যোগ।",
+          "t-footer-links": "গুরুত্বপূর্ণ লিংক",
+          "t-footer-legal": "আইনি এবং দাবিত্যাগ",
+          "t-footer-disc-text":
+            "তথ্যমূলক উদ্দেশ্যে। সর্বদা অফিসিয়াল gov.in পোর্টালে যাচাই করুন।",
+        },
+        te: {
+          "t-hero-title": "సమాచారంతో పౌరుల సాధికారత",
+          "t-hero-desc":
+            "ప్రభుత్వ బాధ్యతల కోసం దశలవారీ విధానాలు మరియు అధికారిక ప్రయోజనాలు, సబ్సిడీలు మరియు స్కాలర్‌షిప్‌ల జాబితా.",
+          "t-hero-badge": "నవీకరించబడింది ఏప్రిల్ 2026",
+          "t-sec1-title": "ప్రభుత్వ సేవల మార్గదర్శి",
+          "t-sec1-label": "సేవను ఎంచుకోండి:",
+          "t-procedure-title": "దశలవారీ విధానం",
+          "t-sec2-title": "పథకాలు & ప్రయోజనాల అన్వేషకి",
+          "btn-apply": "అధికారిక పోర్టల్",
+          "t-search": "పథకాలను శోధించండి...",
+          "t-time": "అంచనా సమయం",
+          "t-cost": "రుసుము/ఖర్చు",
+          "t-docs": "ముఖ్య పత్రాలు",
+          "t-empty": "ఎలాంటి పథకాలు కనుగొనబడలేదు.",
+          "toast-lang": "భాష తెలుగులోకి మార్చబడింది",
+          "toast-copy": "లింక్ కాపీ చేయబడింది!",
+          "t-footer-about": "సహాయక్ సేతు గురించి",
+          "t-footer-desc":
+            "భారతీయ పౌరులు ప్రభుత్వ సేవలు, సబ్సిడీలు మరియు స్కాలర్‌షిప్‌లను సులభంగా పొందడంలో సహాయపడే ఒక స్వతంత్ర చొరవ.",
+          "t-footer-links": "ముఖ్యమైన లింకులు",
+          "t-footer-legal": "చట్టపరమైన మరియు నిరాకరణ",
+          "t-footer-disc-text":
+            "సమాచార ప్రయోజనాల కోసం. ఎల్లప్పుడూ అధికారిక gov.in పోర్టల్‌లలో తనిఖీ చేయండి.",
+        },
+        mr: {
+          "t-hero-title": "माहितीसह नागरिकांचे सक्षमीकरण",
+          "t-hero-desc":
+            "सरकारी जबाबदाऱ्यांसाठी तपशीलवार टप्प्याटप्प्याने प्रक्रिया आणि अधिकृत फायदे, सबसिडी आणि शिष्यवृत्तीची यादी.",
+          "t-hero-badge": "अद्यतनित एप्रिल 2026",
+          "t-sec1-title": "सरकारी सेवा मार्गदर्शक",
+          "t-sec1-label": "सेवा निवडा:",
+          "t-procedure-title": "टप्प्याटप्प्याने प्रक्रिया",
+          "t-sec2-title": "योजना आणि फायदे एक्सप्लोरर",
+          "btn-apply": "अधिकृत पोर्टल",
+          "t-search": "योजना शोधा...",
+          "t-time": "अंदाजे वेळ",
+          "t-cost": "शुल्क/खर्च",
+          "t-docs": "महत्त्वाची कागदपत्रे",
+          "t-empty": "कोणतीही योजना आढळली नाही.",
+          "toast-lang": "भाषा मराठीत बदलली",
+          "toast-copy": "लिंक कॉपी केली!",
+          "t-footer-about": "सहाय्यक सेतू बद्दल",
+          "t-footer-desc":
+            "भारतीय नागरिकांना सरकारी सेवा, सबसिडी आणि शिष्यवृत्ती सहज उपलब्ध होण्यासाठी एक स्वतंत्र उपक्रम.",
+          "t-footer-links": "महत्त्वाच्या लिंक्स",
+          "t-footer-legal": "कायदेशीर आणि अस्वीकरण",
+          "t-footer-disc-text":
+            "माहितीच्या उद्देशांसाठी. नेहमी अधिकृत gov.in पोर्टलवर पडताळणी करा.",
+        },
+        ta: {
+          "t-hero-title": "தகவலுடன் குடிமக்களுக்கு அதிகாரமளித்தல்",
+          "t-hero-desc":
+            "அரசு பொறுப்புகளுக்கான விரிவான படிப்படியான நடைமுறைகள் மற்றும் அதிகாரப்பூர்வ பலன்கள், மானியங்கள் மற்றும் உதவித்தொகைகளின் பட்டியல்.",
+          "t-hero-badge": "புதுப்பிக்கப்பட்டது ஏப்ரல் 2026",
+          "t-sec1-title": "அரசு சேவைகள் வழிகாட்டி",
+          "t-sec1-label": "ஒரு சேவையைத் தேர்ந்தெடுக்கவும்:",
+          "t-procedure-title": "படிப்படியான நடைமுறை",
+          "t-sec2-title": "திட்டங்கள் & நன்மைகள்",
+          "btn-apply": "அதிகாரப்பூர்வ தளம்",
+          "t-search": "திட்டங்களைத் தேடுங்கள்...",
+          "t-time": "மதிப்பிடப்பட்ட நேரம்",
+          "t-cost": "கட்டணம்",
+          "t-docs": "முக்கிய ஆவணங்கள்",
+          "t-empty": "எந்த திட்டங்களும் காணப்படவில்லை.",
+          "toast-lang": "மொழி தமிழுக்கு மாற்றப்பட்டது",
+          "toast-copy": "இணைப்பு நகலெடுக்கப்பட்டது!",
+          "t-footer-about": "சஹாயக் சேது பற்றி",
+          "t-footer-desc":
+            "இந்திய குடிமக்கள் அரசு சேவைகள், மானியங்கள் மற்றும் உதவித்தொகைகளை எளிதாக அணுக உதவும் ஒரு சுயாதீன முயற்சி.",
+          "t-footer-links": "முக்கிய இணைப்புகள்",
+          "t-footer-legal": "சட்ட & மறுப்பு",
+          "t-footer-disc-text":
+            "தகவல் நோக்கங்களுக்காக. அதிகாரப்பூர்வ gov.in தளங்களில் எப்போதும் சரிபார்க்கவும்.",
+        },
+      };
+
+      const servicesData = [
+        {
+          id: "pan",
+          name: {
+            en: "Apply for PAN Card",
+            hi: "पैन कार्ड लागू करें",
+            bn: "প্যান কার্ডের আবেদন",
+            te: "పాన్ కార్డ్ దరఖాస్తు",
+            mr: "पॅन कार्ड अर्ज",
+            ta: "பான் கார்டு விண்ணப்பம்",
+          },
+          meta: {
+            time: {
+              en: "10-15 Days",
+              hi: "10-15 दिन",
+              bn: "১০-১৫ দিন",
+              te: "10-15 రోజులు",
+              mr: "१०-१५ दिवस",
+              ta: "10-15 நாட்கள்",
+            },
+            cost: {
+              en: "₹107 (Online)",
+              hi: "₹107 (ऑनलाइन)",
+              bn: "₹১০৭ (অনলাইন)",
+              te: "₹107 (ఆన్‌లైన్)",
+              mr: "₹१०७ (ऑनलाइन)",
+              ta: "₹107 (ஆன்லைன்)",
+            },
+            docs: {
+              en: "Aadhaar, Photo, Sign",
+              hi: "आधार, फोटो, हस्ताक्षर",
+              bn: "আধার, ছবি, স্বাক্ষর",
+              te: "ఆధార్, ఫోటో, సంతకం",
+              mr: "आधार, फोटो, स्वाक्षरी",
+              ta: "ஆதார், புகைப்படம், கையொப்பம்",
+            },
+          },
+          steps: {
+            en: [
+              "Visit the official NSDL or UTIITSL web portal.",
+              "Select 'New PAN - Indian Citizen (Form 49A)'.",
+              "Fill in personal details and upload Aadhaar, photo, and signature digitally.",
+              "Pay the application fee online using UPI, Card, or Netbanking.",
+              "Submit and save the 15-digit acknowledgement number to track status.",
+              "Physical card is delivered by India Post to your address.",
+            ],
+            hi: [
+              "आधिकारिक NSDL या UTIITSL वेब पोर्टल पर जाएं।",
+              "नया पैन - भारतीय नागरिक (फॉर्म 49A) चुनें।",
+              "व्यक्तिगत विवरण भरें और आधार, फोटो और हस्ताक्षर डिजिटल रूप से अपलोड करें।",
+              "UPI, कार्ड या नेटबैंकिंग का उपयोग करके ऑनलाइन आवेदन शुल्क का भुगतान करें।",
+              "जमा करें और स्थिति को ट्रैक करने के लिए 15 अंकों की पावती संख्या सहेजें।",
+              "भौतिक कार्ड इंडिया पोस्ट द्वारा आपके पते पर दिया जाता है।",
+            ],
+            bn: [
+              "অফিসিয়াল NSDL বা UTIITSL পোর্টালে যান।",
+              "ফর্ম 49A নির্বাচন করুন।",
+              "আধার, ছবি এবং স্বাক্ষর আপলোড করুন।",
+              "অনলাইনে ফি প্রদান করুন।",
+              "ট্র্যাকিং নম্বর সংরক্ষণ করুন।",
+              "কার্ড পোস্টের মাধ্যমে বিতরণ করা হয়।",
+            ],
+            te: [
+              "అధికారిక NSDL లేదా UTIITSL పోర్టల్‌ని సందర్శించండి.",
+              "ఫారం 49A ఎంచుకోండి.",
+              "ఆధార్, ఫోటో మరియు సంతకం అప్‌లోడ్ చేయండి.",
+              "ఆన్‌లైన్‌లో ఫీజు చెల్లించండి.",
+              "ట్రాకింగ్ నంబర్‌ను సేవ్ చేయండి.",
+              "కార్డ్ పోస్ట్ ద్వారా పంపిణీ చేయబడుతుంది.",
+            ],
+            mr: [
+              "अधिकृत NSDL किंवा UTIITSL पोर्टलला भेट द्या.",
+              "फॉर्म 49A निवडा.",
+              "आधार, फोटो आणि स्वाक्षरी अपलोड करा.",
+              "ऑनलाइन फी भरा.",
+              "ट्रॅकिंग क्रमांक जतन करा.",
+              "कार्ड पोस्टाद्वारे वितरित केले जाते.",
+            ],
+            ta: [
+              "அதிகாரப்பூர்வ NSDL அல்லது UTIITSL போர்ட்டலுக்குச் செல்லவும்.",
+              "படிவம் 49A ஐத் தேர்ந்தெடுக்கவும்.",
+              "ஆதார், புகைப்படம் மற்றும் கையொப்பத்தைப் பதிவேற்றவும்.",
+              "ஆன்லைனில் கட்டணம் செலுத்தவும்.",
+              "கண்காணிப்பு எண்ணைச் சேமிக்கவும்.",
+              "கார்டு தபால் மூலம் வழங்கப்படும்.",
+            ],
+          },
+        },
+        {
+          id: "voterid",
+          name: {
+            en: "Register for Voter ID",
+            hi: "वोटर आईडी पंजीकरण",
+            bn: "ভোটার আইডির নিবন্ধন",
+            te: "ఓటర్ ID నమోదు",
+            mr: "मतदार ओळखपत्र नोंदणी",
+            ta: "வாக்காளர் அட்டை பதிவு",
+          },
+          meta: {
+            time: {
+              en: "1 Month",
+              hi: "1 महीना",
+              bn: "১ মাস",
+              te: "1 నెల",
+              mr: "१ महिना",
+              ta: "1 மாதம்",
+            },
+            cost: {
+              en: "Free",
+              hi: "निःशुल्क",
+              bn: "বিনামূল্যে",
+              te: "ఉచితం",
+              mr: "मोफत",
+              ta: "இலவசம்",
+            },
+            docs: {
+              en: "Age & Address Proof",
+              hi: "आयु और पता प्रमाण",
+              bn: "বয়স এবং ঠিকানা প্রমাণ",
+              te: "వయస్సు & చిరునామా రుజువు",
+              mr: "वय आणि पत्ता पुरावा",
+              ta: "வயது & முகவரி சான்று",
+            },
+          },
+          steps: {
+            en: [
+              "Visit the Election Commission portal (voters.eci.gov.in).",
+              "Register/Login and select 'Form 6' for new electoral roll inclusion.",
+              "Fill demographic details and securely upload Age & Address proof.",
+              "Submit the application and note the generated Reference ID.",
+              "A Booth Level Officer (BLO) will visit or contact you to verify details.",
+              "Upon approval, EPIC (Voter ID) is generated and posted to your registered address.",
+            ],
+            hi: [
+              "चुनाव आयोग के पोर्टल (voters.eci.gov.in) पर जाएं।",
+              "पंजीकरण/लॉगिन करें और नए पंजीकरण के लिए 'फॉर्म 6' चुनें।",
+              "जनसांख्यिकीय विवरण भरें और आयु और पता प्रमाण सुरक्षित रूप से अपलोड करें।",
+              "आवेदन जमा करें और जनरेट की गई संदर्भ आईडी नोट करें।",
+              "एक बूथ लेवल ऑफिसर (BLO) विवरण सत्यापित करने के लिए संपर्क करेगा।",
+              "मंजूरी के बाद, EPIC जनरेट किया जाता है और आपके पते पर पोस्ट किया जाता है।",
+            ],
+            bn: [
+              "voters.eci.gov.in পোর্টালে যান।",
+              "ফর্ম 6 নির্বাচন করুন।",
+              "প্রমাণ আপলোড করুন।",
+              "আবেদন জমা দিন।",
+              "BLO যাচাইকরণ করবে।",
+              "EPIC আপনার ঠিকানায় পোস্ট করা হবে।",
+            ],
+            te: [
+              "voters.eci.gov.in పోర్టల్‌ని సందర్శించండి.",
+              "ఫారం 6 ఎంచుకోండి.",
+              "రుజువును అప్‌లోడ్ చేయండి.",
+              "దరఖాస్తును సమర్పించండి.",
+              "BLO ధృవీకరిస్తారు.",
+              "EPIC మీ చిరునామాకు పోస్ట్ చేయబడుతుంది.",
+            ],
+            mr: [
+              "voters.eci.gov.in पोर्टलला भेट द्या.",
+              "फॉर्म 6 निवडा.",
+              "पुरावा अपलोड करा.",
+              "अर्ज सबमिट करा.",
+              "BLO पडताळणी करेल.",
+              "EPIC तुमच्या पत्त्यावर पोस्ट केले जाईल.",
+            ],
+            ta: [
+              "voters.eci.gov.in தளத்திற்குச் செல்லவும்.",
+              "படிவம் 6 ஐத் தேர்ந்தெடுக்கவும்.",
+              "சான்றைப் பதிவேற்றவும்.",
+              "விண்ணப்பத்தை சமர்ப்பிக்கவும்.",
+              "BLO சரிபார்க்கும்.",
+              "EPIC உங்கள் முகவரிக்கு அனுப்பப்படும்.",
+            ],
+          },
+        },
+      ];
+
+      const benefitsData = [
+        {
+          id: "farmer",
+          icon: "fa-tractor",
+          name: {
+            en: "Farmer",
+            hi: "किसान",
+            bn: "কৃষক",
+            te: "రైతు",
+            mr: "शेतकरी",
+            ta: "விவசாயி",
+          },
+          schemes: [
+            {
+              title: {
+                en: "PM-KISAN Samman Nidhi",
+                hi: "पीएम-किसान सम्मान निधि",
+                bn: "পিএম-কিষাণ",
+                te: "పిఎం-కిసాన్",
+                mr: "पीएम-किसान",
+                ta: "பிஎம்-கிசான்",
+              },
+              desc: {
+                en: "Direct income support of ₹6,000 per year transferred securely via DBT to landholding farmer families.",
+                hi: "भूमिधारी किसान परिवारों को प्रत्यक्ष आय सहायता।",
+                bn: "কৃষক পরিবারকে আর্থিক সহায়তা।",
+                te: "రైతు కుటుంబాలకు ఆర్థిక సహాయం.",
+                mr: "शेतकरी कुटुंबांना आर्थिक मदत.",
+                ta: "விவசாய குடும்பங்களுக்கு நிதி உதவி.",
+              },
+              benefit: "₹6,000 / Year",
+              url: "https://pmkisan.gov.in/",
+            },
+            {
+              title: {
+                en: "Pradhan Mantri Fasal Bima Yojana",
+                hi: "प्रधानमंत्री फसल बीमा योजना",
+                bn: "ফসল বিমা যোজনা",
+                te: "ఫసల్ బీమా యోజన",
+                mr: "पीक विमा योजना",
+                ta: "பயிர் காப்பீட்டுத் திட்டம்",
+              },
+              desc: {
+                en: "Comprehensive crop insurance policy ensuring financial protection against non-preventable natural risks.",
+                hi: "व्यापक फसल बीमा पॉलिसी।",
+                bn: "শস্য বিমা।",
+                te: "పంట భీమా.",
+                mr: "पीक विमा.",
+                ta: "பயிர் காப்பீடு.",
+              },
+              benefit: "Insurance Cover",
+              url: "https://pmfby.gov.in/",
+            },
+          ],
+        },
+        {
+          id: "student",
+          icon: "fa-graduation-cap",
+          name: {
+            en: "Student",
+            hi: "छात्र",
+            bn: "ছাত্র",
+            te: "విద్యార్థి",
+            mr: "विद्यार्थी",
+            ta: "மாணவர்",
+          },
+          schemes: [
+            {
+              title: {
+                en: "National Scholarship Portal",
+                hi: "राष्ट्रीय छात्रवृत्ति पोर्टल",
+                bn: "জাতীয় বৃত্তি পোর্টাল",
+                te: "జాతీయ స్కాలర్‌షిప్ పోర్టల్",
+                mr: "राष्ट्रीय शिष्यवृत्ती पोर्टल",
+                ta: "தேசிய உதவித்தொகை போர்டல்",
+              },
+              desc: {
+                en: "Centralized one-stop portal for applying to various Pre-Matric, Post-Matric, and Merit scholarships.",
+                hi: "छात्रवृत्ति के लिए केंद्रीकृत पोर्टल।",
+                bn: "বৃত্তির জন্য কেন্দ্রীভূত পোর্টাল।",
+                te: "స్కాలర్‌షిప్‌ల కోసం పోర్టల్.",
+                mr: "शिष्यवृत्तीसाठी पोर्टल.",
+                ta: "உதவித்தொகைக்கான தளம்.",
+              },
+              benefit: "Financial Aid",
+              url: "https://scholarships.gov.in/",
+            },
+            {
+              title: {
+                en: "PM Vidyalaxmi Scheme",
+                hi: "पीएम विद्यालक्ष्मी योजना",
+                bn: "পিএম বিদ্যালক্ষ্মী",
+                te: "పిఎం విద్యాలక్ష్మి",
+                mr: "पीएम विद्यालक्ष्मी",
+                ta: "பிஎம் வித்யாலட்சுமி",
+              },
+              desc: {
+                en: "IT-based single window portal for students to seamlessly apply for educational loans from multiple banks.",
+                hi: "शिक्षा ऋण के लिए सिंगल विंडो पोर्टल।",
+                bn: "শিক্ষা ঋণের পোর্টাল।",
+                te: "విద్యా రుణాల పోర్టల్.",
+                mr: "शैक्षणिक कर्जाचे पोर्टल.",
+                ta: "கல்வி கடன்களுக்கான தளம்.",
+              },
+              benefit: "Education Loan",
+              url: "https://www.vidyalakshmi.co.in/",
+            },
+          ],
+        },
+        {
+          id: "women",
+          icon: "fa-person-dress",
+          name: {
+            en: "Women",
+            hi: "महिलाएं",
+            bn: "মহিলা",
+            te: "మహిళలు",
+            mr: "महिला",
+            ta: "பெண்கள்",
+          },
+          schemes: [
+            {
+              title: {
+                en: "PM Matru Vandana Yojana",
+                hi: "पीएम मातृ वंदना योजना",
+                bn: "মাতৃ বন্দনা যোজনা",
+                te: "మాతృ వందన యోజన",
+                mr: "मातृ वंदना योजना",
+                ta: "மாத்ரு வந்தனா யோஜனா",
+              },
+              desc: {
+                en: "Maternity benefit program providing conditional cash incentives for pregnant and lactating women.",
+                hi: "गर्भवती महिलाओं के लिए नकद प्रोत्साहन।",
+                bn: "গর্ভবতী মহিলাদের জন্য নগদ প্রণোদনা।",
+                te: "గర్భిణీ స్త్రీలకు నగదు ప్రోత్సాహకాలు.",
+                mr: "गर्भवती महिलांसाठी रोख प्रोत्साहन.",
+                ta: "கர்ப்பிணிப் பெண்களுக்கு பண ஊக்கத்தொகை.",
+              },
+              benefit: "₹5,000 Cash Incentive",
+              url: "https://wcd.nic.in/schemes/pradhan-mantri-matru-vandana-yojana",
+            },
+            {
+              title: {
+                en: "Sukanya Samriddhi Yojana",
+                hi: "सुकन्या समृद्धि योजना",
+                bn: "সুকন্যা সমৃদ্ধি যোজনা",
+                te: "సుకున్య సమృద్ధి యోజన",
+                mr: "सुकन्या समृद्धी योजना",
+                ta: "சுகன்யா சம்ருத்தி யோஜனா",
+              },
+              desc: {
+                en: "A government-backed savings scheme targeted at parents to secure the future of their girl child.",
+                hi: "बालिकाओं के लिए सरकारी बचत योजना।",
+                bn: "কন্যা সন্তানদের জন্য সঞ্চয় প্রকল্প।",
+                te: "ఆడపిల్లల పొదుపు పథకం.",
+                mr: "मुलींसाठी बचत योजना.",
+                ta: "பெண் குழந்தைகளுக்கான சேமிப்புத் திட்டம்.",
+              },
+              benefit: "High Interest Savings",
+              url: "https://www.indiapost.gov.in/Financial/Pages/Content/Sukanya-Samriddhi-Account.aspx",
+            },
+          ],
+        },
+        {
+          id: "senior",
+          icon: "fa-person-cane",
+          name: {
+            en: "Senior Citizen",
+            hi: "वरिष्ठ नागरिक",
+            bn: "প্রবীণ নাগরিক",
+            te: "వృద్ధులు",
+            mr: "ज्येष्ठ नागरिक",
+            ta: "மூத்த குடிமக்கள்",
+          },
+          schemes: [
+            {
+              title: {
+                en: "Atal Pension Yojana",
+                hi: "अटल पेंशन योजना",
+                bn: "অটল পেনশন যোজনা",
+                te: "అటల్ పెన్షన్ యోజన",
+                mr: "अटल पेन्शन योजना",
+                ta: "அடல் ஓய்வூதிய திட்டம்",
+              },
+              desc: {
+                en: "A guaranteed pension scheme administered by PFRDA specifically focused on the unorganized sector.",
+                hi: "असंगठित क्षेत्र के लिए गारंटीकृत पेंशन योजना।",
+                bn: "নিশ্চিত পেনশন স্কিম।",
+                te: "హామీ పెన్షన్ పథకం.",
+                mr: "हमी दिलेली पेन्शन योजना.",
+                ta: "உத்தரவாத ஓய்வூதிய திட்டம்.",
+              },
+              benefit: "₹1k-5k / Month",
+              url: "https://www.pfrda.org.in/",
+            },
+          ],
+        },
+      ];
+
+      const DOM = {
+        langSelect: document.getElementById("langSelect"),
+        themeToggle: document.getElementById("themeToggle"),
+        serviceDropdown: document.getElementById("serviceDropdown"),
+        stepsDisplay: document.getElementById("stepsDisplay"),
+        metaDisplay: document.getElementById("serviceMetaDisplay"),
+        catContainer: document.getElementById("categoryButtonsContainer"),
+        schemesGrid: document.getElementById("schemesGridContainer"),
+        schemeSearch: document.getElementById("schemeSearch"),
+        scrollProgress: document.getElementById("scroll-progress"),
+      };
+
+      function init() {
+        document.documentElement.setAttribute("data-theme", State.theme);
+        updateThemeIcon();
+
+        DOM.themeToggle.addEventListener("click", toggleTheme);
+        DOM.langSelect.addEventListener("change", (e) => {
+          State.lang = e.target.value;
+          renderAll();
+          Toast.show(i18n[State.lang]["toast-lang"], "fa-language");
+        });
+        DOM.serviceDropdown.addEventListener("change", (e) =>
+          renderServiceData(e.target.value),
+        );
+        DOM.schemeSearch.addEventListener("input", (e) => {
+          State.searchQuery = e.target.value.toLowerCase();
+          renderSchemes();
+        });
+
+        window.addEventListener("scroll", () => {
+          const winScroll =
+            document.body.scrollTop || document.documentElement.scrollTop;
+          const height =
+            document.documentElement.scrollHeight -
+            document.documentElement.clientHeight;
+          DOM.scrollProgress.style.width = (winScroll / height) * 100 + "%";
+        });
+
+        renderAll();
+      }
+
+      function toggleTheme() {
+        State.theme = State.theme === "light" ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", State.theme);
+        localStorage.setItem("theme", State.theme);
+        updateThemeIcon();
+      }
+
+      function updateThemeIcon() {
+        DOM.themeToggle.innerHTML =
+          State.theme === "light"
+            ? '<i class="fa-solid fa-moon"></i>'
+            : '<i class="fa-solid fa-sun"></i>';
+      }
+
+      function renderAll() {
+        translateStaticUI();
+        renderServiceDropdown();
+        renderCategoryButtons();
+        renderSchemes();
+      }
+
+      function translateStaticUI() {
+        const dict = i18n[State.lang];
+        Object.keys(dict).forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = dict[id];
+        });
+        DOM.schemeSearch.placeholder = dict["t-search"];
+      }
+
+      function renderServiceDropdown() {
+        const currentSelection =
+          DOM.serviceDropdown.value || servicesData[0].id;
+        DOM.serviceDropdown.innerHTML = "";
+
+        servicesData.forEach((service) => {
+          const option = document.createElement("option");
+          option.value = service.id;
+          option.textContent = service.name[State.lang] || service.name["en"];
+          if (service.id === currentSelection) option.selected = true;
+          DOM.serviceDropdown.appendChild(option);
+        });
+
+        renderServiceData(currentSelection);
+      }
+
+      function renderServiceData(serviceId) {
+        const service = servicesData.find((s) => s.id === serviceId);
+        const dict = i18n[State.lang];
+
+        DOM.metaDisplay.innerHTML = `
+        <div class="meta-card">
+          <span class="meta-label">${dict["t-time"]}</span>
+          <span class="meta-value"><i class="fa-regular fa-clock"></i> ${service.meta.time[State.lang]}</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">${dict["t-cost"]}</span>
+          <span class="meta-value"><i class="fa-solid fa-indian-rupee-sign"></i> ${service.meta.cost[State.lang]}</span>
+        </div>
+        <div class="meta-card meta-full">
+          <span class="meta-label">${dict["t-docs"]}</span>
+          <span class="meta-value"><i class="fa-regular fa-file-lines"></i> ${service.meta.docs[State.lang]}</span>
+        </div>
+      `;
+
+        DOM.stepsDisplay.innerHTML = "";
+        const stepsArr = service.steps[State.lang] || service.steps["en"];
+
+        stepsArr.forEach((step, index) => {
+          const li = document.createElement("li");
+          li.className = "timeline-item";
+          li.style.animationDelay = `${index * 0.1}s`;
+          li.innerHTML = `<div class="timeline-content"><strong>Step ${index + 1}:</strong> ${step}</div>`;
+          DOM.stepsDisplay.appendChild(li);
+        });
+      }
+
+      function renderCategoryButtons() {
+        DOM.catContainer.innerHTML = "";
+
+        benefitsData.forEach((cat) => {
+          const btn = document.createElement("button");
+          btn.className = `cat-btn ${cat.id === State.category ? "active" : ""}`;
+          btn.setAttribute("aria-pressed", cat.id === State.category);
+          btn.innerHTML = `<i class="fa-solid ${cat.icon}"></i> <span>${cat.name[State.lang] || cat.name["en"]}</span>`;
+
+          btn.addEventListener("click", () => {
+            State.category = cat.id;
+            State.searchQuery = "";
+            DOM.schemeSearch.value = "";
+            renderCategoryButtons();
+            renderSchemes();
+          });
+
+          DOM.catContainer.appendChild(btn);
+        });
+      }
+
+      function renderSchemes() {
+        DOM.schemesGrid.innerHTML = "";
+        const dict = i18n[State.lang];
+
+        let displaySchemes = [];
+        if (State.searchQuery.length > 0) {
+          benefitsData.forEach((cat) => {
+            cat.schemes.forEach((s) => {
+              const title = (
+                s.title[State.lang] || s.title["en"]
+              ).toLowerCase();
+              const desc = (s.desc[State.lang] || s.desc["en"]).toLowerCase();
+              if (
+                title.includes(State.searchQuery) ||
+                desc.includes(State.searchQuery)
+              ) {
+                displaySchemes.push(s);
+              }
+            });
+          });
+        } else {
+          const catData = benefitsData.find((c) => c.id === State.category);
+          if (catData) displaySchemes = catData.schemes;
+        }
+
+        if (displaySchemes.length === 0) {
+          DOM.schemesGrid.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-folder-open"></i>
+            <p>${dict["t-empty"]}</p>
+          </div>
+        `;
+          return;
+        }
+
+        displaySchemes.forEach((scheme, index) => {
+          const card = document.createElement("div");
+          card.className = "scheme-card";
+          card.style.animationDelay = `${index * 0.08}s`;
+
+          const title = scheme.title[State.lang] || scheme.title["en"];
+          const desc = scheme.desc[State.lang] || scheme.desc["en"];
+
+          card.innerHTML = `
+          <div class="scheme-header">
+            <h3>${title}</h3>
+            <div class="action-group">
+              <button class="share-btn" onclick="copyToClipboard('${scheme.url}')" aria-label="Share Link" title="Copy Link">
+                <i class="fa-solid fa-link"></i>
+              </button>
+            </div>
+          </div>
+          <p class="scheme-desc">${desc}</p>
+          <div class="scheme-footer">
+            <span class="benefit-tag"><i class="fa-solid fa-bolt"></i> ${scheme.benefit}</span>
+            <a href="${scheme.url}" target="_blank" rel="noopener noreferrer" class="official-link">
+              ${dict["btn-apply"]} <i class="fa-solid fa-arrow-right"></i>
+            </a>
+          </div>
+        `;
+          DOM.schemesGrid.appendChild(card);
+        });
+      }
+
+      window.copyToClipboard = function (text) {
+        navigator.clipboard.writeText(text).then(() => {
+          Toast.show(i18n[State.lang]["toast-copy"], "fa-link");
+        });
+      };
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>
