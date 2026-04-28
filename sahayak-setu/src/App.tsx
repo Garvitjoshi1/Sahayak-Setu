@@ -2263,7 +2263,6 @@ const fetchWithRetry = async <T,>(
 ): Promise<T> => {
   const retries = options.retries ?? 2;
   const timeout = options.timeout ?? 5000;
-  const idempotencyKey = crypto.randomUUID(); // Simulated Idempotency for POST/PUT
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
