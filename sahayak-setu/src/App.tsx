@@ -1,53 +1,3 @@
-/**
- * ============================================================================
- * SAHAYAK SETU - ARCHITECTURE & ENGINEERING MANIFESTO
- * ============================================================================
- * * 1. PRODUCT SCOPE:
- * - Purpose: Empower Indian citizens with step-by-step govt service guides.
- * - Target Audience: Pan-India, multilingual users.
- * * 2. USER FLOWS:
- * - Flow A (Services): User selects service -> Views Meta (Time/Cost) -> Views Timeline.
- * - Flow B (Benefits): User selects category or searches -> Views filtered Yojnas -> Copies/Visits official links.
- * * 3. FAILURE CASES HANDLED:
- * - Network Failure: Handled via try/catch in `apiService` + Error UI states.
- * - Data Not Found: Empty states for search and filtering.
- * - App Crash: Top-level React ErrorBoundary prevents white screens of death.
- * * 4. BRANCHING STRATEGY (Simulated):
- * - Trunk-based development. Main branch protected. Feature branches (feat/xyz) merged via PRs.
- * * 5. SCALABILITY & PERFORMANCE (NEW):
- * - Code Splitting: Routes/heavy sections are lazy-loaded via React.lazy & Suspense.
- * - Core Web Vitals: Explicit image dimensions (CLS), fetchPriority (LCP), useTransition (INP).
- * - Render Optimization: Heavy lists use React.memo, useCallback, and useMemo.
- * - API Caching: In-memory cache layer prevents duplicate network requests.
- * - CDN Readiness: Static assets designed to be served via Edge networks (Cloudflare/Vercel).
- * * 6. SECURITY POSTURE (NEW):
- * - HTTPS Enforcement: TLS/SSL mandated. Auto-redirects insecure HTTP traffic to HTTPS.
- * - XSS Prevention: Strict input validation and sanitization on all user inputs.
- * - Rate Limiting & Bot Protection: Debounce hooks throttle high-frequency events to protect APIs.
- * - Secrets Management: API keys rely on build-time env injection (never hardcoded in client).
- * - Backend/Infra Responsibilities: SQLi (ORM/Prepared Statements), CSRF Protection, Secure Headers (CSP/HSTS), Authentication (JWT), and HTTPOnly Sessions are strictly enforced at the API Gateway/Backend layer.
- * * 7. DATABASE & BACKEND SAFETY (NEW):
- * - DB Indexing: Replaced raw array scans with Indexed Maps for O(1) lookups.
- * - Backend Validation: API layer strictly validates payloads to prevent bypassed frontend checks.
- * - Audit Trails: Simulated `BackendLogger` tracks all DB transactions/queries.
- * - Infra Mandates: Automated backups, encryption at rest (AES-256), ACID transactions, and RBAC (Least Privilege) are enforced at the DB level.
- * * 8. API & INTEGRATION DESIGN (NEW):
- * - Resilient Fetching: Configured with exponential backoff retries and timeout boundaries.
- * - Strict Versioning: All endpoints explicitly versioned (e.g., /api/v1/).
- * - Status Codes & Idempotency: API returns exact HTTP codes; critical ops require Idempotency-Key headers.
- * * 9. UX/UI ENGINEERING & WCAG (NEW):
- * - Fast Feedback: Implemented CSS-animated Skeleton loaders for 0-layout-shift perceived performance.
- * - Exact Design Replication: Pixel-perfect implementation of the provided Services Guide UI.
- * - WCAG Accessibility: Enforced contrast ratios, `aria-busy`, `aria-live`, and keyboard navigability.
- * - Human-Centric Error States: Errors provide actionable context instead of generic "Something went wrong".
- * * 10. SEO & DISCOVERABILITY (NEW):
- * - Structured Data (JSON-LD): Dynamically injects `Organization`, `WebSite`, and `HowTo` schemas for Google Rich Snippets.
- * - Dynamic Meta Tags: Updates OpenGraph, Twitter Cards, and canonical URLs based on state/language.
- * - Semantic HTML5: Strict `h1`-`h6` hierarchy, `<main>`, `<article>`, `<nav>`, and `<aside>` landmark roles.
- * - SSR Readiness: App is decoupled from DOM to allow seamless export to Next.js/Remix for Server-Side Rendering and static sitemap.xml / robots.txt generation.
- * ============================================================================
- */
-
 import React, {
   useState,
   useEffect,
@@ -58,14 +8,14 @@ import React, {
   useTransition,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
-import type { ReactNode, ErrorInfo } from "react";
+import type { ReactNode } from "react";
 
 // ==========================================
 // 1. CONFIG & ENVIRONMENT MANAGEMENT
 // ==========================================
-// In a real app, these come from process.env or a secure vault.
-const ENV_MODE = "production"; // 'development' | 'staging' | 'production'
+const ENV_MODE = "production";
 const CONFIG = {
   isProd: ENV_MODE === "production",
   apiBaseUrl:
@@ -74,18 +24,11 @@ const CONFIG = {
       : "http://localhost:8080/v1",
   defaultLang: "en" as const,
   defaultTheme: "light" as const,
-  // SECURITY: Secrets are NEVER hardcoded. Pulled from environment variables at build-time.
-  // Example: apiKey: import.meta.env.VITE_API_KEY || process.env.REACT_APP_API_KEY
 };
 
 // ==========================================
 // 1.5. SECURITY UTILITIES
 // ==========================================
-
-/**
- * Prevent Cross-Site Scripting (XSS) by encoding dangerous characters.
- * Ensures malicious script tags cannot be injected via inputs.
- */
 export const sanitizeInput = (input: string): string => {
   const map: Record<string, string> = {
     "&": "&amp;",
@@ -99,10 +42,6 @@ export const sanitizeInput = (input: string): string => {
   return input.replace(reg, (match) => map[match]);
 };
 
-/**
- * Debounce hook for Rate Limiting / Bot Protection (Frontend layer).
- * Prevents rapid-fire API calls or heavy re-renders during text input.
- */
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
@@ -112,19 +51,13 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-/**
- * Enterprise SEO Hook for Dynamic Meta Tags & Structured Data (JSON-LD)
- * Ensures Google can index and display Rich Snippets (like Step-by-Step guides).
- */
 export function useDynamicSEO(
   title: string,
   description: string,
   schemaData?: any,
 ) {
   useEffect(() => {
-    // 1. Update Standard Meta Tags
     document.title = `${title} | Sahayak Setu`;
-
     const setMeta = (name: string, content: string, isProperty = false) => {
       const attr = isProperty ? `property="${name}"` : `name="${name}"`;
       let el = document.querySelector(`meta[${attr}]`);
@@ -146,7 +79,6 @@ export function useDynamicSEO(
     setMeta("twitter:title", title);
     setMeta("twitter:description", description);
 
-    // 2. Inject Structured Data (JSON-LD)
     let scriptEl = document.getElementById("seo-json-ld");
     if (!scriptEl) {
       scriptEl = document.createElement("script");
@@ -155,36 +87,24 @@ export function useDynamicSEO(
       document.head.appendChild(scriptEl);
     }
 
-    // Default WebSite & Organization Schema
     const baseSchema = {
       "@context": "https://schema.org",
       "@graph": [
         {
           "@type": "WebSite",
           name: "Sahayak Setu",
-          url: "https://sahayaksetu.gov.in", // Simulated domain
+          url: "https://sahayaksetu.gov.in",
           description:
             "Step-by-step procedures for Indian government services.",
-        },
-        {
-          "@type": "Organization",
-          name: "Sahayak Setu Initiative",
-          logo: "https://sahayaksetu.gov.in/logo.jpg",
         },
       ],
     };
 
-    // Append specific schema (like 'HowTo' for step-by-step guides) if provided
     if (schemaData) {
       baseSchema["@graph"].push(schemaData);
     }
 
     scriptEl.textContent = JSON.stringify(baseSchema);
-
-    // Cleanup not strictly necessary for SPA head tags, but good practice
-    return () => {
-      if (scriptEl) scriptEl.textContent = JSON.stringify(baseSchema);
-    };
   }, [title, description, schemaData]);
 }
 
@@ -193,6 +113,7 @@ export function useDynamicSEO(
 // ==========================================
 type Language = "en" | "hi" | "bn" | "te" | "mr" | "ta";
 type Theme = "light" | "dark";
+type AppMode = "gateway" | "chat" | "home";
 
 interface LocalizedString {
   en: string;
@@ -231,11 +152,107 @@ interface Category {
   schemes: Scheme[];
 }
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "ai";
+  text: string;
+  isHtml?: boolean;
+}
+
 // ==========================================
-// 3. MOCK DATABASE (Simulating Backend Storage - FULLY TRANSLATED)
+// 3. MOCK DATABASE (MASSIVELY EXPANDED)
 // ==========================================
 const MOCK_DB = {
   services: [
+    // Identity & Core Documents
+    {
+      id: "aadhaar_new",
+      name: {
+        en: "Apply for New Aadhaar",
+        hi: "नया आधार कार्ड बनाएं",
+        bn: "নতুন আধার কার্ড করুন",
+        te: "కొత్త ఆధార్ కార్డ్ చేయండి",
+        mr: "नवीन आधार कार्ड काढा",
+        ta: "புதிய ஆதார் அட்டையைப் பெறுங்கள்",
+      },
+      meta: {
+        time: {
+          en: "60-90 Days",
+          hi: "60-90 दिन",
+          bn: "৬০-৯০ দিন",
+          te: "60-90 రోజులు",
+          mr: "६०-९० दिवस",
+          ta: "60-90 நாட்கள்",
+        },
+        cost: {
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
+        },
+        docs: {
+          en: "Identity & Address Proof",
+          hi: "पहचान और पता प्रमाण",
+          bn: "পরিচয় ও ঠিকানার প্রমাণ",
+          te: "గుర్తింపు & చిరునామా రుజువు",
+          mr: "ओळख आणि पत्ता पुरावा",
+          ta: "அடையாளம் மற்றும் முகவரி சான்று",
+        },
+      },
+      url: "https://uidai.gov.in/",
+      steps: {
+        en: [
+          "Locate your nearest Aadhaar Enrollment Center via UIDAI portal.",
+          "Book an appointment online or visit the center directly.",
+          "Fill out the Aadhaar Enrollment Form.",
+          "Submit demographic and biometric data.",
+          "Collect the acknowledgment slip (EID).",
+          "Track status online and download e-Aadhaar.",
+        ],
+        hi: [
+          "UIDAI पोर्टल से निकटतम केंद्र खोजें।",
+          "अपॉइंटमेंट बुक करें या सीधे केंद्र पर जाएं।",
+          "आधार नामांकन फॉर्म भरें।",
+          "बायोमेट्रिक डेटा जमा करें।",
+          "पावती पर्ची (EID) प्राप्त करें।",
+          "ई-आधार डाउनलोड करें।",
+        ],
+        bn: [
+          "নিকটস্থ আধার কেন্দ্র খুঁজুন।",
+          "অ্যাপয়েন্টমেন্ট বুক করুন।",
+          "ফর্ম পূরণ করুন।",
+          "বায়োমেট্রিক ডেটা জমা দিন।",
+          "অ্যাকনলেজমেন্ট স্লিপ নিন।",
+          "ই-আধার ডাউনলোড করুন।",
+        ],
+        te: [
+          "సమీప ఆధార్ కేంద్రాన్ని కనుగొనండి.",
+          "అపాయింట్‌మెంట్ బుక్ చేసుకోండి.",
+          "ఫారమ్ నింపండి.",
+          "బయోమెట్రిక్ డేటాను సమర్పించండి.",
+          "రసీదు తీసుకోండి.",
+          "ఇ-ఆధార్ డౌన్‌లోడ్ చేయండి.",
+        ],
+        mr: [
+          "जवळचे आधार केंद्र शोधा.",
+          "अपॉइंटमेंट बुक करा.",
+          "फॉर्म भरा.",
+          "बायोमेट्रिक डेटा सबमिट करा.",
+          "पावती गोळा करा.",
+          "ई-आधार डाउनलोड करा.",
+        ],
+        ta: [
+          "அருகிலுள்ள மையத்தைக் கண்டறியவும்.",
+          "சந்திப்பை முன்பதிவு செய்யவும்.",
+          "படிவத்தை நிரப்பவும்.",
+          "பயோமெட்ரிக் தரவை சமர்ப்பிக்கவும்.",
+          "ஒப்புதல் சீட்டைப் பெறவும்.",
+          "இ-ஆதாரை பதிவிறக்கவும்.",
+        ],
+      },
+    },
     {
       id: "pan",
       name: {
@@ -277,48 +294,48 @@ const MOCK_DB = {
         en: [
           "Visit the official NSDL or UTIITSL web portal.",
           "Select 'New PAN - Indian Citizen (Form 49A)'.",
-          "Fill in personal details and upload Aadhaar, photo, and signature digitally.",
-          "Pay the application fee online using UPI, Card, or Netbanking.",
-          "Submit and save the 15-digit acknowledgement number to track status.",
-          "Physical card is delivered by India Post to your address.",
+          "Fill in personal details and upload Aadhaar digitally.",
+          "Pay the application fee online using UPI/Card.",
+          "Submit and save the 15-digit acknowledgement number.",
+          "Physical card is delivered by India Post.",
         ],
         hi: [
-          "आधिकारिक NSDL या UTIITSL वेब पोर्टल पर जाएं।",
-          "नया पैन - भारतीय नागरिक (फॉर्म 49A) चुनें।",
-          "व्यक्तिगत विवरण भरें और आधार, फोटो और हस्ताक्षर डिजिटल रूप से अपलोड करें।",
-          "UPI, कार्ड या नेटबैंकिंग का उपयोग करके ऑनलाइन आवेदन शुल्क का भुगतान करें।",
-          "जमा करें और स्थिति को ट्रैक करने के लिए 15 अंकों की पावती संख्या सहेजें।",
-          "भौतिक कार्ड इंडिया पोस्ट द्वारा आपके पते पर दिया जाता है।",
+          "NSDL या UTIITSL पोर्टल पर जाएं।",
+          "फॉर्म 49A चुनें।",
+          "आधार और विवरण अपलोड करें।",
+          "ऑनलाइन शुल्क का भुगतान करें।",
+          "पावती संख्या सहेजें।",
+          "भौतिक कार्ड डाक द्वारा प्राप्त करें।",
         ],
         bn: [
-          "অফিসিয়াল NSDL বা UTIITSL পোর্টালে যান।",
+          "NSDL বা UTIITSL পোর্টালে যান।",
           "ফর্ম 49A নির্বাচন করুন।",
-          "আধার, ছবি এবং স্বাক্ষর আপলোড করুন।",
-          "অনলাইনে ফি প্রদান করুন।",
+          "আধার আপলোড করুন।",
+          "ফি প্রদান করুন।",
           "ট্র্যাকিং নম্বর সংরক্ষণ করুন।",
           "কার্ড পোস্টের মাধ্যমে বিতরণ করা হয়।",
         ],
         te: [
-          "అధికారిక NSDL లేదా UTIITSL పోర్టల్‌ని సందర్శించండి.",
+          "NSDL లేదా UTIITSL పోర్టల్‌ని సందర్శించండి.",
           "ఫారం 49A ఎంచుకోండి.",
-          "ఆధార్, ఫోటో మరియు సంతకం అప్‌లోడ్ చేయండి.",
-          "ఆన్‌లైన్‌లో ఫీజు చెల్లించండి.",
+          "ఆధార్ అప్‌లోడ్ చేయండి.",
+          "ఫీజు చెల్లించండి.",
           "ట్రాకింగ్ నంబర్‌ను సేవ్ చేయండి.",
           "కార్డ్ పోస్ట్ ద్వారా పంపిణీ చేయబడుతుంది.",
         ],
         mr: [
-          "अधिकृत NSDL किंवा UTIITSL पोर्टलला भेट द्या.",
+          "NSDL किंवा UTIITSL पोर्टलला भेट द्या.",
           "फॉर्म 49A निवडा.",
-          "आधार, फोटो आणि स्वाक्षरी अपलोड करा.",
-          "ऑनलाइन फी भरा.",
+          "आधार अपलोड करा.",
+          "फी भरा.",
           "ट्रॅकिंग क्रमांक जतन करा.",
           "कार्ड पोस्टाद्वारे वितरित केले जाते.",
         ],
         ta: [
-          "அதிகாரப்பூர்வ NSDL அல்லது UTIITSL போர்ட்டலுக்குச் செல்லவும்.",
+          "NSDL அல்லது UTIITSL போர்ட்டலுக்குச் செல்லவும்.",
           "படிவம் 49A ஐத் தேர்ந்தெடுக்கவும்.",
-          "ஆதார், புகைப்படம் மற்றும் கையொப்பத்தைப் பதிவேற்றவும்.",
-          "ஆன்லைனில் கட்டணம் செலுத்தவும்.",
+          "ஆதாரைப் பதிவேற்றவும்.",
+          "கட்டணம் செலுத்தவும்.",
           "கண்காணிப்பு எண்ணைச் சேமிக்கவும்.",
           "கார்டு தபால் மூலம் வழங்கப்படும்.",
         ],
@@ -364,24 +381,24 @@ const MOCK_DB = {
       steps: {
         en: [
           "Visit the Election Commission portal (voters.eci.gov.in).",
-          "Register/Login and select 'Form 6' for new electoral roll inclusion.",
-          "Fill demographic details and securely upload Age & Address proof.",
-          "Submit the application and note the generated Reference ID.",
-          "A Booth Level Officer (BLO) will visit or contact you to verify details.",
-          "Upon approval, EPIC (Voter ID) is generated and posted to your registered address.",
+          "Select 'Form 6' for new electoral roll inclusion.",
+          "Fill demographic details and upload Age & Address proof.",
+          "Submit the application and note the Reference ID.",
+          "A Booth Level Officer (BLO) will verify details.",
+          "EPIC (Voter ID) is generated and posted to you.",
         ],
         hi: [
-          "चुनाव आयोग के पोर्टल (voters.eci.gov.in) पर जाएं।",
-          "पंजीकरण/लॉगिन करें और नए पंजीकरण के लिए 'फॉर्म 6' चुनें।",
-          "जनसांख्यिकीय विवरण भरें और आयु और पता प्रमाण सुरक्षित रूप से अपलोड करें।",
-          "आवेदन जमा करें और जनरेट की गई संदर्भ आईडी नोट करें।",
-          "एक बूथ लेवल ऑफिसर (BLO) विवरण सत्यापित करने के लिए संपर्क करेगा।",
-          "मंजूरी के बाद, EPIC जनरेट किया जाता है और आपके पते पर पोस्ट किया जाता है।",
+          "चुनाव आयोग के पोर्टल पर जाएं।",
+          "नए पंजीकरण के लिए 'फॉर्म 6' चुनें।",
+          "आयु और पता प्रमाण अपलोड करें।",
+          "आवेदन जमा करें और संदर्भ आईडी नोट करें।",
+          "BLO विवरण सत्यापित करेगा।",
+          "EPIC जनरेट किया जाता है और पोस्ट किया जाता है।",
         ],
         bn: [
           "voters.eci.gov.in পোর্টালে যান।",
           "ফর্ম 6 নির্বাচন করুন।",
-          "বয়স ও ঠিকানা প্রমাণ আপলোড করুন।",
+          "প্রমাণ আপলোড করুন।",
           "আবেদন জমা দিন।",
           "BLO যাচাইকরণ করবে।",
           "EPIC আপনার ঠিকানায় পোস্ট করা হবে।",
@@ -389,7 +406,7 @@ const MOCK_DB = {
         te: [
           "voters.eci.gov.in పోర్టల్‌ని సందర్శించండి.",
           "ఫారం 6 ఎంచుకోండి.",
-          "వయస్సు & చిరునామా రుజువును అప్‌లోడ్ చేయండి.",
+          "రుజువును అప్‌లోడ్ చేయండి.",
           "దరఖాస్తును సమర్పించండి.",
           "BLO ధృవీకరిస్తారు.",
           "EPIC మీ చిరునామాకు పోస్ట్ చేయబడుతుంది.",
@@ -397,7 +414,7 @@ const MOCK_DB = {
         mr: [
           "voters.eci.gov.in पोर्टलला भेट द्या.",
           "फॉर्म 6 निवडा.",
-          "वय आणि पत्ता पुरावा अपलोड करा.",
+          "पुरावा अपलोड करा.",
           "अर्ज सबमिट करा.",
           "BLO पडताळणी करेल.",
           "EPIC तुमच्या पत्त्यावर पोस्ट केले जाईल.",
@@ -405,7 +422,7 @@ const MOCK_DB = {
         ta: [
           "voters.eci.gov.in தளத்திற்குச் செல்லவும்.",
           "படிவம் 6 ஐத் தேர்ந்தெடுக்கவும்.",
-          "வயது மற்றும் முகவரி சான்றைப் பதிவேற்றவும்.",
+          "சான்றைப் பதிவேற்றவும்.",
           "விண்ணப்பத்தை சமர்ப்பிக்கவும்.",
           "BLO சரிபார்க்கும்.",
           "EPIC உங்கள் முகவரிக்கு அனுப்பப்படும்.",
@@ -413,190 +430,14 @@ const MOCK_DB = {
       },
     },
     {
-      id: "aadhaar_new",
-      name: {
-        en: "Apply for New Aadhaar",
-        hi: "नया आधार कार्ड बनाएं",
-        bn: "নতুন আধার কার্ড করুন",
-        te: "కొత్త ఆధార్ కార్డ్ చేయండి",
-        mr: "नवीन आधार कार्ड काढा",
-        ta: "புதிய ஆதார் அட்டையைப் பெறுங்கள்",
-      },
-      meta: {
-        time: {
-          en: "60-90 Days",
-          hi: "60-90 दिन",
-          bn: "৬০-৯০ দিন",
-          te: "60-90 రోజులు",
-          mr: "६०-९० दिवस",
-          ta: "60-90 நாட்கள்",
-        },
-        cost: {
-          en: "Free",
-          hi: "निःशुल्क",
-          bn: "বিনামূল্যে",
-          te: "ఉచితం",
-          mr: "मोफत",
-          ta: "இலவசம்",
-        },
-        docs: {
-          en: "Identity & Address Proof",
-          hi: "पहचान और पता प्रमाण",
-          bn: "পরিচয় ও ঠিকানার প্রমাণ",
-          te: "గుర్తింపు & చిరునామా రుజువు",
-          mr: "ओळख आणि पत्ता पुरावा",
-          ta: "அடையாளம் மற்றும் முகவரி சான்று",
-        },
-      },
-      url: "https://uidai.gov.in/",
-      steps: {
-        en: [
-          "Locate your nearest Aadhaar Enrollment Center via the UIDAI portal.",
-          "Book an appointment online or visit the center directly.",
-          "Fill out the Aadhaar Enrollment Form available at the center.",
-          "Submit your demographic data and biometric data (fingerprints & iris).",
-          "Collect the acknowledgment slip containing your Enrollment ID (EID).",
-          "Track status online and download the e-Aadhaar once generated.",
-        ],
-        hi: [
-          "UIDAI पोर्टल के माध्यम से निकटतम आधार नामांकन केंद्र खोजें।",
-          "ऑनलाइन अपॉइंटमेंट बुक करें या सीधे केंद्र पर जाएं।",
-          "केंद्र पर उपलब्ध आधार नामांकन फॉर्म भरें।",
-          "अपना जनसांख्यिकीय और बायोमेट्रिक डेटा (फिंगरप्रिंट और आईरिस) जमा करें।",
-          "नामांकन आईडी (EID) वाली पावती पर्ची प्राप्त करें।",
-          "ऑनलाइन स्थिति को ट्रैक करें और बनने के बाद ई-आधार डाउनलोड करें।",
-        ],
-        bn: [
-          "আপনার নিকটস্থ আধার কেন্দ্র খুঁজুন।",
-          "অ্যাপয়েন্টমেন্ট বুক করুন।",
-          "আধার ফর্ম পূরণ করুন।",
-          "বায়োমেট্রিক ডেটা জমা দিন।",
-          "অ্যাকনলেজমেন্ট স্লিপ সংগ্রহ করুন।",
-          "ই-আধার ডাউনলোড করুন।",
-        ],
-        te: [
-          "మీ సమీప ఆధార్ కేంద్రాన్ని కనుగొనండి.",
-          "అపాయింట్‌మెంట్ బుక్ చేసుకోండి.",
-          "ఆధార్ ఫారమ్ నింపండి.",
-          "బయోమెట్రిక్ డేటాను సమర్పించండి.",
-          "రసీదు స్లిప్ తీసుకోండి.",
-          "ఇ-ఆధార్ డౌన్‌లోడ్ చేయండి.",
-        ],
-        mr: [
-          "तुमचे जवळचे आधार केंद्र शोधा.",
-          "अपॉइंटमेंट बुक करा.",
-          "आधार फॉर्म भरा.",
-          "बायोमेट्रिक डेटा सबमिट करा.",
-          "पावती स्लिप गोळा करा.",
-          "ई-आधार डाउनलोड करा.",
-        ],
-        ta: [
-          "உங்கள் அருகிலுள்ள ஆதார் மையத்தைக் கண்டறியவும்.",
-          "சந்திப்பை முன்பதிவு செய்யவும்.",
-          "ஆதார் படிவத்தை நிரப்பவும்.",
-          "பயோமெட்ரிக் தரவைச் சமர்ப்பிக்கவும்.",
-          "ஒப்புதல் சீட்டைப் பெறவும்.",
-          "இ-ஆதாரை பதிவிறக்கவும்.",
-        ],
-      },
-    },
-    {
-      id: "aadhaar_update",
-      name: {
-        en: "Update Aadhaar Details",
-        hi: "आधार विवरण अपडेट करें",
-        bn: "আধার আপডেট করুন",
-        te: "ఆధార్ నవీకరించండి",
-        mr: "आधार अपडेट करा",
-        ta: "ஆதாரை புதுப்பிக்கவும்",
-      },
-      meta: {
-        time: {
-          en: "15-30 Days",
-          hi: "15-30 दिन",
-          bn: "১৫-৩০ দিন",
-          te: "15-30 రోజులు",
-          mr: "१५-३० दिवस",
-          ta: "15-30 நாட்கள்",
-        },
-        cost: {
-          en: "₹50",
-          hi: "₹50",
-          bn: "₹৫০",
-          te: "₹50",
-          mr: "₹५०",
-          ta: "₹50",
-        },
-        docs: {
-          en: "Supporting Documents",
-          hi: "सहायक दस्तावेज़",
-          bn: "প্রয়োজনীয় নথিপত্র",
-          te: "సహాయక పత్రాలు",
-          mr: "सहाय्यक दस्तऐवज",
-          ta: "ஆதரவு ஆவணங்கள்",
-        },
-      },
-      url: "https://myaadhaar.uidai.gov.in/",
-      steps: {
-        en: [
-          "Visit the myAadhaar portal (myaadhaar.uidai.gov.in) and login using OTP.",
-          "Select the 'Update Aadhaar Online' option.",
-          "Choose the field to update (Name, DOB, Gender, Address).",
-          "Upload valid supporting documents required for the specific update.",
-          "Pay the non-refundable update fee of ₹50 online.",
-          "Save the Service Request Number (SRN) to track your update status.",
-        ],
-        hi: [
-          "myAadhaar पोर्टल पर जाएं और OTP से लॉगिन करें।",
-          "ऑनलाइन आधार अपडेट करें विकल्प चुनें।",
-          "अपडेट करने के लिए फ़ील्ड चुनें।",
-          "आवश्यक वैध सहायक दस्तावेज़ अपलोड करें।",
-          "₹50 का अपडेट शुल्क ऑनलाइन भुगतान करें।",
-          "स्थिति को ट्रैक करने के लिए सेवा अनुरोध संख्या (SRN) सहेजें।",
-        ],
-        bn: [
-          "myAadhaar পোর্টালে যান।",
-          "অনলাইন আপডেট নির্বাচন করুন।",
-          "আপডেট করার ক্ষেত্র নির্বাচন করুন।",
-          "নথিপত্র আপলোড করুন।",
-          "₹৫০ ফি প্রদান করুন।",
-          "ট্র্যাকিং নম্বর সংরক্ষণ করুন।",
-        ],
-        te: [
-          "myAadhaar పోర్టల్‌కు వెళ్లండి.",
-          "ఆన్‌లైన్ అప్‌డేట్ ఎంచుకోండి.",
-          "నవీకరించాల్సిన ఫీల్డ్‌ను ఎంచుకోండి.",
-          "పత్రాలను అప్‌లోడ్ చేయండి.",
-          "₹50 ఫీజు చెల్లించండి.",
-          "ట్రాకింగ్ నంబర్‌ను సేవ్ చేయండి.",
-        ],
-        mr: [
-          "myAadhaar पोर्टलवर जा.",
-          "ऑनलाइन अपडेट निवडा.",
-          "अपडेट करण्यासाठी फील्ड निवडा.",
-          "कागदपत्रे अपलोड करा.",
-          "₹50 फी भरा.",
-          "ट्रॅकिंग क्रमांक जतन करा.",
-        ],
-        ta: [
-          "myAadhaar தளத்திற்குச் செல்லவும்.",
-          "ஆன்லைன் புதுப்பிப்பைத் தேர்ந்தெடுக்கவும்.",
-          "புதுப்பிக்க வேண்டிய புலத்தைத் தேர்ந்தெடுக்கவும்.",
-          "ஆவணங்களைப் பதிவேற்றவும்.",
-          "₹50 கட்டணம் செலுத்தவும்.",
-          "கண்காணிப்பு எண்ணைச் சேமிக்கவும்.",
-        ],
-      },
-    },
-    {
       id: "passport",
       name: {
-        en: "Apply for Fresh Passport",
-        hi: "नए पासपोर्ट के लिए आवेदन",
-        bn: "নতুন পাসপোর্ট আবেদন",
-        te: "కొత్త పాస్‌పోర్ట్ దరఖాస్తు",
-        mr: "नवीन पासपोर्ट अर्ज",
-        ta: "புதிய பாஸ்போர்ட் விண்ணப்பம்",
+        en: "Passport Application",
+        hi: "पासपोर्ट आवेदन",
+        bn: "পাসপোর্ট আবেদন",
+        te: "పాస్‌పోర్ట్ దరఖాస్తు",
+        mr: "पासपोर्ट अर्ज",
+        ta: "பாஸ்போர்ட் விண்ணப்பம்",
       },
       meta: {
         time: {
@@ -616,511 +457,160 @@ const MOCK_DB = {
           ta: "₹1,500",
         },
         docs: {
-          en: "Aadhaar, Address, DOB Proof",
-          hi: "आधार, पता, जन्म प्रमाण",
-          bn: "আধার, ঠিকানা, জন্ম প্রমাণ",
-          te: "ఆధార్, చిరునామా, జనన రుజువు",
-          mr: "आधार, पत्ता, जन्म पुरावा",
-          ta: "ஆதார், முகவரி, பிறந்த தேதி சான்று",
+          en: "Aadhaar, Address Proof",
+          hi: "आधार, पता प्रमाण",
+          bn: "আধার, ঠিকানা প্রমাণ",
+          te: "ఆధార్, చిరునామా రుజువు",
+          mr: "आधार, पत्ता पुरावा",
+          ta: "ஆதார், முகவரி சான்று",
         },
       },
       url: "https://www.passportindia.gov.in/",
       steps: {
         en: [
-          "Register on the Passport Seva Online Portal.",
-          "Login and select 'Apply for Fresh Passport / Re-issue of Passport'.",
-          "Fill in the required details in the form and submit.",
-          "Click 'Pay and Schedule Appointment' to book a slot at a PSK/POPSK.",
-          "Visit the Passport Seva Kendra (PSK) with original documents.",
-          "Complete local police verification; passport is dispatched via post.",
+          "Register on Passport Seva Online Portal.",
+          "Fill 'Apply for Fresh Passport' form.",
+          "Pay fee and Schedule Appointment at PSK.",
+          "Visit PSK with original documents.",
+          "Complete local police verification.",
+          "Passport is dispatched via post.",
         ],
         hi: [
-          "पासपोर्ट सेवा ऑनलाइन पोर्टल पर पंजीकरण करें।",
-          "लॉगिन करें और 'नए पासपोर्ट' का चयन करें।",
-          "फॉर्म में आवश्यक विवरण भरें और जमा करें।",
-          "PSK में अपॉइंटमेंट बुक करने के लिए भुगतान करें।",
-          "मूल दस्तावेजों के साथ पासपोर्ट सेवा केंद्र पर जाएं।",
-          "स्थानीय पुलिस सत्यापन पूरा करें; पासपोर्ट डाक द्वारा भेजा जाता है।",
+          "पासपोर्ट सेवा पोर्टल पर पंजीकरण करें।",
+          "फॉर्म भरें और जमा करें।",
+          "शुल्क का भुगतान करें और अपॉइंटमेंट लें।",
+          "मूल दस्तावेजों के साथ PSK जाएं।",
+          "पुलिस सत्यापन पूरा करें।",
+          "पासपोर्ट डाक द्वारा भेजा जाता है।",
         ],
         bn: [
           "পাসপোর্ট পোর্টালে নিবন্ধন করুন।",
-          "নতুন পাসপোর্টের জন্য আবেদন করুন।",
           "ফর্ম পূরণ করুন।",
           "ফি প্রদান করুন এবং অ্যাপয়েন্টমেন্ট বুক করুন।",
           "PSK তে যান।",
           "পুলিশ যাচাইকরণ সম্পন্ন করুন।",
+          "পাসপোর্ট পাঠানো হয়।",
         ],
         te: [
           "పాస్‌పోర్ట్ పోర్టల్‌లో నమోదు చేయండి.",
-          "కొత్త పాస్‌పోర్ట్ కోసం దరఖాస్తు చేయండి.",
           "ఫారమ్‌ను నింపండి.",
           "ఫీజు చెల్లించి అపాయింట్‌మెంట్ బుక్ చేయండి.",
           "PSK కి వెళ్లండి.",
           "పోలీస్ ధృవీకరణ పూర్తి చేయండి.",
+          "పాస్‌పోర్ట్ పంపబడుతుంది.",
         ],
         mr: [
           "पासपोर्ट पोर्टलवर नोंदणी करा.",
-          "नवीन पासपोर्टसाठी अर्ज करा.",
           "फॉर्म भरा.",
           "फी भरा आणि अपॉइंटमेंट बुक करा.",
           "PSK ला भेट द्या.",
           "पोलीस पडताळणी पूर्ण करा.",
+          "पासपोर्ट पाठवला जातो.",
         ],
         ta: [
           "பாஸ்போர்ட் இணையதளத்தில் பதிவு செய்யவும்.",
-          "புதிய பாஸ்போர்ட்டுக்கு விண்ணப்பிக்கவும்.",
           "படிவத்தை நிரப்பவும்.",
           "கட்டணம் செலுத்தி சந்திப்பை பதிவு செய்யவும்.",
           "PSK-க்குச் செல்லவும்.",
           "காவல்துறை சரிபார்ப்பை முடிக்கவும்.",
+          "பாஸ்போர்ட் அனுப்பப்படுகிறது.",
         ],
       },
     },
+    // Finance, Tax & Compliance
     {
-      id: "driving_license",
+      id: "itr_filing",
       name: {
-        en: "Apply for Learner's License",
-        hi: "लर्निंग लाइसेंस के लिए आवेदन",
-        bn: "লার্নার্স লাইসেন্স আবেদন",
-        te: "లెర్నర్స్ లైసెన్స్ దరఖాస్తు",
-        mr: "लर्निंग लायसन्स अर्ज",
-        ta: "கற்றல் உரிம விண்ணப்பம்",
+        en: "Income Tax Return (ITR)",
+        hi: "आयकर रिटर्न (ITR)",
+        bn: "আয়কর রিটার্ন (ITR)",
+        te: "ఆదాయపు పన్ను రిటర్న్ (ITR)",
+        mr: "इन्कम टॅक्स रिटर्न (ITR)",
+        ta: "வருமான வரி தாக்கல் (ITR)",
       },
       meta: {
         time: {
-          en: "Instant - 7 Days",
-          hi: "तत्काल - 7 दिन",
-          bn: "তাত্ক্ষণিক - ৭ দিন",
-          te: "తక్షణమే - 7 రోజులు",
-          mr: "त्वरित - ७ दिवस",
-          ta: "உடனடி - 7 நாட்கள்",
+          en: "Instant Filing",
+          hi: "तत्काल",
+          bn: "তাত্ক্ষণিক",
+          te: "తక్షణమే",
+          mr: "त्वरित",
+          ta: "உடனடி",
         },
         cost: {
-          en: "₹150 - ₹200",
-          hi: "₹150 - ₹200",
-          bn: "₹১৫০ - ₹২০০",
-          te: "₹150 - ₹200",
-          mr: "₹१५० - ₹२००",
-          ta: "₹150 - ₹200",
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
         },
         docs: {
-          en: "Aadhaar, Age Proof",
-          hi: "आधार, आयु प्रमाण",
-          bn: "আধার, বয়স প্রমাণ",
-          te: "ఆధార్, వయస్సు రుజువు",
-          mr: "आधार, वयाचा पुरावा",
-          ta: "ஆதார், வயது சான்று",
+          en: "Form 16, PAN, Aadhaar",
+          hi: "फॉर्म 16, पैन, आधार",
+          bn: "ফর্ম 16, প্যান, আধার",
+          te: "ఫారం 16, పాన్, ఆధార్",
+          mr: "फॉर्म 16, पॅन, आधार",
+          ta: "படிவம் 16, பான், ஆதார்",
         },
       },
-      url: "https://sarathi.parivahan.gov.in/",
+      url: "https://eportal.incometax.gov.in/",
       steps: {
         en: [
-          "Visit the Parivahan Sewa portal (sarathi.parivahan.gov.in).",
-          "Select your State and click on 'Issue of Learner's Licence'.",
-          "Fill out the application form and upload Aadhaar for eKYC.",
-          "Upload necessary documents (if eKYC is not complete) and Medical Certificate.",
-          "Pay the application fee online.",
-          "Pass the online computerized test to instantly download your Learner's License.",
+          "Log in to the e-Filing portal using PAN.",
+          "Navigate to 'e-File' > 'Income Tax Returns'.",
+          "Select the Assessment Year and ITR Form (e.g., ITR-1).",
+          "Validate pre-filled data using Form 16 and AIS/TIS.",
+          "Confirm tax computation and pay any due tax.",
+          "e-Verify the return using Aadhaar OTP.",
         ],
         hi: [
-          "परिवहन सेवा पोर्टल पर जाएं।",
-          "अपना राज्य चुनें और 'लर्नर लाइसेंस' पर क्लिक करें।",
-          "आवेदन पत्र भरें और eKYC के लिए आधार अपलोड करें।",
-          "आवश्यक दस्तावेज और चिकित्सा प्रमाण पत्र अपलोड करें।",
-          "आवेदन शुल्क का ऑनलाइन भुगतान करें।",
-          "ऑनलाइन कंप्यूटर टेस्ट पास करें और अपना लर्निंग लाइसेंस डाउनलोड करें।",
+          "पैन का उपयोग करके ई-फाइलिंग पोर्टल पर लॉग इन करें।",
+          "'ई-फाइल' > 'आयकर रिटर्न' पर जाएं।",
+          "आकलन वर्ष और आईटीआर फॉर्म चुनें।",
+          "फॉर्म 16 का उपयोग करके डेटा को मान्य करें।",
+          "टैक्स की पुष्टि करें और भुगतान करें।",
+          "आधार ओटीपी का उपयोग करके ई-सत्यापित करें।",
         ],
         bn: [
-          "পরিবহন পোর্টালে যান।",
-          "আপনার রাজ্য নির্বাচন করুন।",
-          "ফর্ম পূরণ করুন এবং আধার আপলোড করুন।",
-          "নথিপত্র আপলোড করুন।",
-          "ফি প্রদান করুন।",
-          "অনলাইন পরীক্ষা পাস করুন এবং লাইসেন্স ডাউনলোড করুন।",
+          "ই-ফাইলিং পোর্টালে লগ ইন করুন।",
+          "রিটার্ন নির্বাচন করুন।",
+          "ফর্ম 16 দিয়ে ডেটা যাচাই করুন।",
+          "ট্যাক্স নিশ্চিত করুন।",
+          "আধার OTP দিয়ে ই-যাচাই করুন।",
+          "জমা দিন।",
         ],
         te: [
-          "పరివాహన్ పోర్టల్‌కు వెళ్లండి.",
-          "మీ రాష్ట్రాన్ని ఎంచుకోండి.",
-          "ఫారమ్‌ను నింపండి మరియు ఆధార్ అప్‌లోడ్ చేయండి.",
-          "పత్రాలను అప్‌లోడ్ చేయండి.",
-          "ఫీజు చెల్లించండి.",
-          "ఆన్‌లైన్ పరీక్షలో ఉత్తీర్ణత సాధించి లైసెన్స్ డౌన్‌లోడ్ చేయండి.",
+          "ఇ-ఫైలింగ్ పోర్టల్‌లోకి లాగిన్ అవ్వండి.",
+          "రిటర్న్స్ ఎంచుకోండి.",
+          "ఫారం 16తో డేటాను ధృవీకరించండి.",
+          "పన్ను నిర్ధారించండి.",
+          "ఆధార్ OTPతో ఇ-వెరిఫై చేయండి.",
+          "సమర్పించండి.",
         ],
         mr: [
-          "परिवहन पोर्टलवर जा.",
-          "तुमचे राज्य निवडा.",
-          "फॉर्म भरा आणि आधार अपलोड करा.",
-          "कागदपत्रे अपलोड करा.",
-          "फी भरा.",
-          "ऑनलाइन परीक्षा उत्तीर्ण करा आणि लायसन्स डाउनलोड करा.",
+          "ई-फायलिंग पोर्टलवर लॉग इन करा.",
+          "रिटर्न्स निवडा.",
+          "फॉर्म 16 सह डेटा सत्यापित करा.",
+          "टॅक्सची पुष्टी करा.",
+          "आधार OTP वापरून ई-सत्यापित करा.",
+          "सबमिट करा.",
         ],
         ta: [
-          "பரிவாஹன் தளத்திற்குச் செல்லவும்.",
-          "உங்கள் மாநிலத்தைத் தேர்ந்தெடுக்கவும்.",
-          "படிவத்தை நிரப்பி ஆதாரைப் பதிவேற்றவும்.",
-          "ஆவணங்களைப் பதிவேற்றவும்.",
-          "கட்டணம் செலுத்தவும்.",
-          "ஆன்லைன் தேர்வில் தேர்ச்சி பெற்று உரிமத்தைப் பதிவிறக்கவும்.",
-        ],
-      },
-    },
-    {
-      id: "income_cert",
-      name: {
-        en: "Apply for Income Certificate",
-        hi: "आय प्रमाण पत्र के लिए आवेदन",
-        bn: "আয় শংসাপত্র আবেদন",
-        te: "ఆదాయ ధృవీకరణ పత్రం",
-        mr: "उत्पन्न प्रमाणपत्र अर्ज",
-        ta: "வருமான சான்றிதழ்",
-      },
-      meta: {
-        time: {
-          en: "7-15 Days",
-          hi: "7-15 दिन",
-          bn: "৭-১৫ দিন",
-          te: "7-15 రోజులు",
-          mr: "७-१५ दिवस",
-          ta: "7-15 நாட்கள்",
-        },
-        cost: {
-          en: "₹15 - ₹30",
-          hi: "₹15 - ₹30",
-          bn: "₹১৫ - ₹৩০",
-          te: "₹15 - ₹30",
-          mr: "₹१५ - ₹३०",
-          ta: "₹15 - ₹30",
-        },
-        docs: {
-          en: "Salary Slip/ITR, Aadhaar",
-          hi: "सैलरी स्लिप/ITR, आधार",
-          bn: "বেতন স্লিপ/ITR, আধার",
-          te: "జీతం స్లిప్/ITR, ఆధార్",
-          mr: "पगार स्लिप/ITR, आधार",
-          ta: "சம்பள சீட்டு/ITR, ஆதார்",
-        },
-      },
-      url: "https://www.india.gov.in/topics/certificates",
-      steps: {
-        en: [
-          "Visit your state's e-District or specific citizen service portal.",
-          "Create a citizen login account and select 'Income Certificate'.",
-          "Fill in personal, family, and annual income details.",
-          "Upload proofs like Salary Slip, ITR, Ration Card, and Aadhaar.",
-          "Pay the minimal processing fee and note the application reference number.",
-          "Download the digitally signed certificate once verified by the Tehsildar.",
-        ],
-        hi: [
-          "अपने राज्य के ई-डिस्ट्रिक्ट या नागरिक सेवा पोर्टल पर जाएं।",
-          "लॉगिन खाता बनाएं और 'आय प्रमाण पत्र' चुनें।",
-          "व्यक्तिगत, परिवार और वार्षिक आय विवरण भरें।",
-          "वेतन पर्ची, ITR, राशन कार्ड और आधार जैसे प्रमाण अपलोड करें।",
-          "प्रसंस्करण शुल्क का भुगतान करें और संदर्भ संख्या नोट करें।",
-          "सत्यापित होने के बाद डिजिटल हस्ताक्षरित प्रमाण पत्र डाउनलोड करें।",
-        ],
-        bn: [
-          "আপনার রাজ্যের ই-ডিস্ট্রিক্ট পোর্টালে যান।",
-          "আয় শংসাপত্র নির্বাচন করুন।",
-          "আয় বিবরণ পূরণ করুন।",
-          "প্রমাণ আপলোড করুন।",
-          "ফি প্রদান করুন।",
-          "শংসাপত্র ডাউনলোড করুন।",
-        ],
-        te: [
-          "మీ రాష్ట్ర ఇ-డిస్ట్రిక్ట్ పోర్టల్‌కు వెళ్లండి.",
-          "ఆదాయ ధృవీకరణను ఎంచుకోండి.",
-          "ఆదాయ వివరాలను నింపండి.",
-          "రుజువులను అప్‌లోడ్ చేయండి.",
-          "ఫీజు చెల్లించండి.",
-          "ధృవీకరణ పత్రాన్ని డౌన్‌లోడ్ చేయండి.",
-        ],
-        mr: [
-          "तुमच्या राज्याच्या ई-डिस्ट्रिक्ट पोर्टलवर जा.",
-          "उत्पन्न प्रमाणपत्र निवडा.",
-          "उत्पन्नाचे तपशील भरा.",
-          "पुरावे अपलोड करा.",
-          "फी भरा.",
-          "प्रमाणपत्र डाउनलोड करा.",
-        ],
-        ta: [
-          "உங்கள் மாநில இ-மாவட்ட தளத்திற்குச் செல்லவும்.",
-          "வருமான சான்றிதழைத் தேர்ந்தெடுக்கவும்.",
-          "வருமான விவரங்களை நிரப்பவும்.",
-          "சான்றுகளைப் பதிவேற்றவும்.",
-          "கட்டணம் செலுத்தவும்.",
-          "சான்றிதழைப் பதிவிறக்கவும்.",
-        ],
-      },
-    },
-    {
-      id: "caste_cert",
-      name: {
-        en: "Apply for Caste Certificate",
-        hi: "जाति प्रमाण पत्र के लिए आवेदन",
-        bn: "জাতি শংসাপত্র আবেদন",
-        te: "కుల ధృవీకరణ పత్రం",
-        mr: "जातीचा दाखला अर्ज",
-        ta: "சாதி சான்றிதழ்",
-      },
-      meta: {
-        time: {
-          en: "15-30 Days",
-          hi: "15-30 दिन",
-          bn: "১৫-৩০ দিন",
-          te: "15-30 రోజులు",
-          mr: "१५-३० दिवस",
-          ta: "15-30 நாட்கள்",
-        },
-        cost: {
-          en: "₹15 - ₹30",
-          hi: "₹15 - ₹30",
-          bn: "₹১৫ - ₹৩০",
-          te: "₹15 - ₹30",
-          mr: "₹१५ - ₹३०",
-          ta: "₹15 - ₹30",
-        },
-        docs: {
-          en: "Ancestry Proof, Aadhaar",
-          hi: "वंशावली प्रमाण, आधार",
-          bn: "বংশ পরিচয় প্রমাণ, আধার",
-          te: "వంశపారంపర్య రుజువు, ఆధార్",
-          mr: "वंशावळीचा पुरावा, आधार",
-          ta: "பரம்பரை சான்று, ஆதார்",
-        },
-      },
-      url: "https://www.india.gov.in/topics/certificates",
-      steps: {
-        en: [
-          "Log in to your state's e-District portal.",
-          "Navigate to the Revenue Department services and select 'Caste Certificate'.",
-          "Select the category (SC/ST/OBC) and fill out the detailed form.",
-          "Upload family tree documents, pre-1950/old caste proofs, and ID proof.",
-          "Submit the application and complete any required physical verification.",
-          "Download the digital caste certificate once issued by the authority.",
-        ],
-        hi: [
-          "अपने राज्य के ई-डिस्ट्रिक्ट पोर्टल पर लॉग इन करें।",
-          "राजस्व विभाग की सेवाओं पर जाएं और 'जाति प्रमाण पत्र' चुनें।",
-          "श्रेणी चुनें और विस्तृत फॉर्म भरें।",
-          "परिवार के पुराने जाति प्रमाण और आईडी प्रूफ अपलोड करें।",
-          "आवेदन जमा करें और सत्यापन पूरा करें।",
-          "जारी किए जाने के बाद डिजिटल जाति प्रमाण पत्र डाउनलोड करें।",
-        ],
-        bn: [
-          "ই-ডিস্ট্রিক্ট পোর্টালে লগ ইন করুন।",
-          "জাতি শংসাপত্র নির্বাচন করুন।",
-          "ফর্ম পূরণ করুন।",
-          "প্রমাণ আপলোড করুন।",
-          "আবেদন জমা দিন।",
-          "শংসাপত্র ডাউনলোড করুন।",
-        ],
-        te: [
-          "ఇ-డిస్ట్రిక్ట్ పోర్టల్‌లోకి లాగిన్ అవ్వండి.",
-          "కుల ధృవీకరణ పత్రాన్ని ఎంచుకోండి.",
-          "ఫారమ్ నింపండి.",
-          "రుజువులను అప్‌లోడ్ చేయండి.",
-          "దరఖాస్తును సమర్పించండి.",
-          "ధృవీకరణ పత్రాన్ని డౌన్‌లోడ్ చేయండి.",
-        ],
-        mr: [
-          "ई-डिस्ट्रिक्ट पोर्टलवर लॉग इन करा.",
-          "जातीचे प्रमाणपत्र निवडा.",
-          "फॉर्म भरा.",
-          "पुरावे अपलोड करा.",
-          "अर्ज सबमिट करा.",
-          "प्रमाणपत्र डाउनलोड करा.",
-        ],
-        ta: [
-          "இ-மாவட்ட தளத்தில் உள்நுழையவும்.",
-          "சாதி சான்றிதழைத் தேர்ந்தெடுக்கவும்.",
-          "படிவத்தை நிரப்பவும்.",
-          "சான்றுகளைப் பதிவேற்றவும்.",
-          "விண்ணப்பத்தை சமர்ப்பிக்கவும்.",
-          "சான்றிதழைப் பதிவிறக்கவும்.",
-        ],
-      },
-    },
-    {
-      id: "birth_cert",
-      name: {
-        en: "Apply for Birth Certificate",
-        hi: "जन्म प्रमाण पत्र के लिए आवेदन",
-        bn: "জন্ম শংসাপত্র আবেদন",
-        te: "జనన ధృవీకరణ పత్రం",
-        mr: "जन्म प्रमाणपत्र अर्ज",
-        ta: "பிறப்பு சான்றிதழ்",
-      },
-      meta: {
-        time: {
-          en: "7-21 Days",
-          hi: "7-21 दिन",
-          bn: "৭-২১ দিন",
-          te: "7-21 రోజులు",
-          mr: "७-२१ दिवस",
-          ta: "7-21 நாட்கள்",
-        },
-        cost: {
-          en: "₹20 - ₹50",
-          hi: "₹20 - ₹50",
-          bn: "₹২০ - ₹৫০",
-          te: "₹20 - ₹50",
-          mr: "₹२० - ₹५०",
-          ta: "₹20 - ₹50",
-        },
-        docs: {
-          en: "Hospital Discharge, Parents ID",
-          hi: "अस्पताल डिस्चार्ज, माता-पिता की आईडी",
-          bn: "হাসপাতাল ডিসচার্জ, পিতামাতার আইডি",
-          te: "ఆసుపత్రి డిశ్చార్జ్, తల్లిదండ్రుల ID",
-          mr: "रुग्णालय डिस्चार्ज, पालकांचे ID",
-          ta: "மருத்துவமனை வெளியேற்றம், பெற்றோர் ID",
-        },
-      },
-      url: "https://crsorgi.gov.in/web/index.php/auth/login",
-      steps: {
-        en: [
-          "Inform the local registrar within 21 days of birth.",
-          "Visit your local Municipal Corporation/Gram Panchayat portal or office.",
-          "Fill the birth registration form with child and parent details.",
-          "Submit the hospital discharge slip and parents' Aadhaar copies.",
-          "Pay the nominal registration fee.",
-          "Collect or download the Birth Certificate upon successful entry.",
-        ],
-        hi: [
-          "जन्म के 21 दिनों के भीतर स्थानीय रजिस्ट्रार को सूचित करें।",
-          "अपने स्थानीय नगर निगम पोर्टल या कार्यालय पर जाएं।",
-          "पंजीकरण फॉर्म भरें।",
-          "अस्पताल की डिस्चार्ज स्लिप और आधार प्रतियां जमा करें।",
-          "पंजीकरण शुल्क का भुगतान करें।",
-          "सफल प्रविष्टि पर जन्म प्रमाण पत्र प्राप्त करें।",
-        ],
-        bn: [
-          "স্থানীয় রেজিস্ট্রারকে অবহিত করুন।",
-          "পৌরসভা বা পঞ্চায়েতে যান।",
-          "ফর্ম পূরণ করুন।",
-          "নথিপত্র জমা দিন।",
-          "ফি প্রদান করুন।",
-          "শংসাপত্র সংগ্রহ করুন।",
-        ],
-        te: [
-          "స్థానిక రిజిస్ట్రార్‌కు తెలియజేయండి.",
-          "మున్సిపల్ కార్యాలయానికి వెళ్లండి.",
-          "ఫారమ్ నింపండి.",
-          "పత్రాలను సమర్పించండి.",
-          "ఫీజు చెల్లించండి.",
-          "ధృవీకరణ పత్రాన్ని తీసుకోండి.",
-        ],
-        mr: [
-          "स्थानिक निबंधकांना कळवा.",
-          "नगरपालिका कार्यालयात जा.",
-          "फॉर्म भरा.",
-          "कागदपत्रे सबमिट करा.",
-          "फी भरा.",
-          "प्रमाणपत्र गोळा करा.",
-        ],
-        ta: [
-          "உள்ளூர் பதிவாளருக்கு தெரிவிக்கவும்.",
-          "நகராட்சி அலுவலகத்திற்குச் செல்லவும்.",
-          "படிவத்தை நிரப்பவும்.",
-          "ஆவணங்களை சமர்ப்பிக்கவும்.",
-          "கட்டணம் செலுத்தவும்.",
-          "சான்றிதழைப் பெறவும்.",
-        ],
-      },
-    },
-    {
-      id: "ration_card",
-      name: {
-        en: "Apply for New Ration Card",
-        hi: "नए राशन कार्ड के लिए आवेदन",
-        bn: "নতুন রেশন কার্ড",
-        te: "కొత్త రేషన్ కార్డ్",
-        mr: "नवीन रेशन कार्ड",
-        ta: "புதிய ரேஷன் அட்டை",
-      },
-      meta: {
-        time: {
-          en: "15-30 Days",
-          hi: "15-30 दिन",
-          bn: "১৫-৩০ দিন",
-          te: "15-30 రోజులు",
-          mr: "१५-३० दिवस",
-          ta: "15-30 நாட்கள்",
-        },
-        cost: {
-          en: "₹5 - ₹45",
-          hi: "₹5 - ₹45",
-          bn: "₹৫ - ₹৪৫",
-          te: "₹5 - ₹45",
-          mr: "₹५ - ₹४५",
-          ta: "₹5 - ₹45",
-        },
-        docs: {
-          en: "Income Cert, Address Proof, Photos",
-          hi: "आय प्रमाण, पता प्रमाण, फोटो",
-          bn: "আয় শংসাপত্র, ঠিকানা প্রমাণ",
-          te: "ఆదాయ ధృవీకరణ, చిరునామా రుజువు",
-          mr: "उत्पन्न प्रमाणपत्र, पत्ता पुरावा",
-          ta: "வருமான சான்று, முகவரி சான்று",
-        },
-      },
-      url: "https://nfsa.gov.in/",
-      steps: {
-        en: [
-          "Visit your state's Department of Food and Civil Supplies web portal.",
-          "Select the option to Apply for a New Ration Card.",
-          "Provide details of the Head of the Family and add all family members.",
-          "Upload passport size photos, Income Certificate, and Address proof.",
-          "A food inspector will verify your details physically or digitally.",
-          "Download the e-Ration Card or collect the physical copy from the designated office.",
-        ],
-        hi: [
-          "अपने राज्य के खाद्य विभाग के वेब पोर्टल पर जाएं।",
-          "नए राशन कार्ड के लिए आवेदन करने का विकल्प चुनें।",
-          "मुखिया और सभी सदस्यों का विवरण दें।",
-          "फोटो, आय प्रमाण पत्र और पता प्रमाण अपलोड करें।",
-          "अधिकारी आपके विवरण को सत्यापित करेगा।",
-          "ई-राशन कार्ड डाउनलोड करें।",
-        ],
-        bn: [
-          "খাদ্য বিভাগের পোর্টালে যান।",
-          "নতুন রেশন কার্ডের আবেদন করুন।",
-          "সদস্যদের বিবরণ দিন।",
-          "নথিপত্র আপলোড করুন।",
-          "যাচাইকরণ হবে।",
-          "কার্ড ডাউনলোড করুন।",
-        ],
-        te: [
-          "ఆహార శాఖ పోర్టల్‌కు వెళ్లండి.",
-          "కొత్త రేషన్ కార్డు కోసం దరఖాస్తు చేయండి.",
-          "సభ్యుల వివరాలను ఇవ్వండి.",
-          "పత్రాలను అప్‌లోడ్ చేయండి.",
-          "ధృవీకరణ జరుగుతుంది.",
-          "కార్డును డౌన్‌లోడ్ చేయండి.",
-        ],
-        mr: [
-          "अन्न विभागाच्या पोर्टलवर जा.",
-          "नवीन रेशन कार्डसाठी अर्ज करा.",
-          "सदस्यांचे तपशील द्या.",
-          "कागदपत्रे अपलोड करा.",
-          "पडताळणी होईल.",
-          "कार्ड डाउनलोड करा.",
-        ],
-        ta: [
-          "உணவுத் துறை தளத்திற்குச் செல்லவும்.",
-          "புதிய ரேஷன் கார்டுக்கு விண்ணப்பிக்கவும்.",
-          "உறுப்பினர்களின் விவரங்களை வழங்கவும்.",
-          "ஆவணங்களைப் பதிவேற்றவும்.",
-          "சரிபார்ப்பு நடைபெறும்.",
-          "அட்டையைப் பதிவிறக்கவும்.",
+          "இ-ஃபைலிங் தளத்தில் உள்நுழையவும்.",
+          "வருமான வரியைத் தேர்ந்தெடுக்கவும்.",
+          "படிவம் 16 மூலம் தரவைச் சரிபார்க்கவும்.",
+          "வரியை உறுதிப்படுத்தவும்.",
+          "ஆதார் OTP மூலம் மின்-சரிபார்க்கவும்.",
+          "சமர்ப்பிக்கவும்.",
         ],
       },
     },
     {
       id: "epf_withdraw",
       name: {
-        en: "EPF (Provident Fund) Withdrawal",
-        hi: "ईपीएफ (भविष्य निधि) निकासी",
+        en: "EPFO Withdrawal",
+        hi: "ईपीएफ निकासी",
         bn: "ইপিএফ প্রত্যাহার",
         te: "EPF ఉపసంహరణ",
         mr: "EPF काढणे",
@@ -1155,19 +645,19 @@ const MOCK_DB = {
       url: "https://unifiedportal-mem.epfindia.gov.in/memberinterface/",
       steps: {
         en: [
-          "Ensure your UAN is activated and linked with Aadhaar, PAN, and Bank details.",
-          "Log in to the EPFO Member e-Sewa portal using your UAN and Password.",
-          "Navigate to 'Online Services' and select 'Claim (Form-31, 19, 10C & 10D)'.",
-          "Enter your bank account number and click 'Verify'.",
-          "Select the reason for withdrawal and the amount required.",
-          "Authenticate using Aadhaar OTP and submit your claim request.",
+          "Ensure UAN is linked with Aadhaar and Bank.",
+          "Log in to EPFO Member e-Sewa portal.",
+          "Navigate to 'Online Services' > 'Claim'.",
+          "Verify bank account number.",
+          "Select withdrawal reason and amount.",
+          "Authenticate via Aadhaar OTP and submit.",
         ],
         hi: [
-          "सुनिश्चित करें कि आपका UAN सक्रिय और बैंक विवरण से जुड़ा है।",
+          "सुनिश्चित करें कि UAN आधार और बैंक से जुड़ा है।",
           "EPFO पोर्टल पर लॉग इन करें।",
-          "'ऑनलाइन सेवा' पर जाएं और दावा चुनें।",
-          "अपना बैंक खाता नंबर सत्यापित करें।",
-          "निकासी का कारण और राशि का चयन करें।",
+          "'ऑनलाइन सेवा' > 'दावा' पर जाएं।",
+          "बैंक खाता सत्यापित करें।",
+          "निकासी का कारण चुनें।",
           "आधार OTP से प्रमाणित करें और सबमिट करें।",
         ],
         bn: [
@@ -1204,94 +694,540 @@ const MOCK_DB = {
         ],
       },
     },
+    // Driving, Transport & Travel
     {
-      id: "marriage_cert",
+      id: "driving_license",
       name: {
-        en: "Register Marriage / Certificate",
-        hi: "विवाह पंजीकरण / प्रमाण पत्र",
-        bn: "বিবাহ শংসাপত্র",
-        te: "వివాహ నమోదు / సర్టిఫికేట్",
-        mr: "विवाह नोंदणी / प्रमाणपत्र",
-        ta: "திருமண பதிவு / சான்றிதழ்",
+        en: "Driving License (New)",
+        hi: "ड्राइविंग लाइसेंस (नया)",
+        bn: "ড্রাইভিং লাইসেন্স",
+        te: "డ్రైవింగ్ లైసెన్స్",
+        mr: "ड्रायव्हिंग लायसन्स",
+        ta: "ஓட்டுநர் உரிமம்",
       },
       meta: {
         time: {
-          en: "15-30 Days",
-          hi: "15-30 दिन",
-          bn: "১৫-৩০ দিন",
-          te: "15-30 రోజులు",
-          mr: "१५-३० दिवस",
-          ta: "15-30 நாட்கள்",
+          en: "30 Days",
+          hi: "30 दिन",
+          bn: "৩০ দিন",
+          te: "30 రోజులు",
+          mr: "३० दिवस",
+          ta: "30 நாட்கள்",
         },
         cost: {
-          en: "₹100 - ₹250",
-          hi: "₹100 - ₹250",
-          bn: "₹১০০ - ₹২৫০",
-          te: "₹100 - ₹250",
-          mr: "₹१०० - ₹२५०",
-          ta: "₹100 - ₹250",
+          en: "₹200 - ₹500",
+          hi: "₹200 - ₹500",
+          bn: "₹২০০ - ₹৫০০",
+          te: "₹200 - ₹500",
+          mr: "₹२०० - ₹५००",
+          ta: "₹200 - ₹500",
         },
         docs: {
-          en: "Wedding Card, Joint Photo, IDs",
-          hi: "शादी का कार्ड, संयुक्त फोटो, आईडी",
-          bn: "বিয়ের কার্ড, যৌথ ছবি, আইডি",
-          te: "వివాహ కార్డు, ఉమ్మడి ఫోటో, IDలు",
-          mr: "लग्नाचे कार्ड, संयुक्त फोटो, आयडी",
-          ta: "திருமண அட்டை, கூட்டு புகைப்படம், IDகள்",
+          en: "Learner's DL, ID Proof",
+          hi: "लर्नर डीएल, आईडी प्रमाण",
+          bn: "লার্নার্স ডিএল, আইডি",
+          te: "లెర్నర్స్ DL, ID",
+          mr: "लर्निंग डीएल, आयडी",
+          ta: "கற்றல் DL, ID",
         },
       },
-      url: "https://www.india.gov.in/topics/certificates",
+      url: "https://sarathi.parivahan.gov.in/",
       steps: {
         en: [
-          "Visit the state e-District portal or local Sub-Registrar's website.",
-          "Fill out the marriage registration form with details of bride and groom.",
-          "Upload wedding invitation card, joint photographs, age, and address proofs.",
-          "Book an appointment online with the Sub-Divisional Magistrate / Registrar.",
-          "Visit the office on the scheduled date along with 2-3 witnesses.",
-          "Sign the registry to officially receive the Marriage Certificate.",
+          "Visit Parivahan Sewa portal.",
+          "Select State and click 'Apply for Driving Licence'.",
+          "Enter your Learner's License number.",
+          "Fill application and upload documents.",
+          "Book a slot for the driving test at RTO.",
+          "Pass the test to receive your permanent DL.",
         ],
         hi: [
-          "राज्य के ई-डिस्ट्रिक्ट पोर्टल पर जाएं।",
-          "विवाह पंजीकरण फॉर्म भरें।",
-          "शादी का कार्ड, तस्वीरें और प्रमाण अपलोड करें।",
-          "मजिस्ट्रेट / रजिस्ट्रार के साथ अपॉइंटमेंट बुक करें।",
-          "गवाहों के साथ निर्धारित तिथि पर कार्यालय जाएं।",
-          "प्रमाण पत्र प्राप्त करने के लिए हस्ताक्षर करें।",
+          "परिवहन सेवा पोर्टल पर जाएं।",
+          "'ड्राइविंग लाइसेंस के लिए आवेदन' पर क्लिक करें।",
+          "लर्नर लाइसेंस नंबर दर्ज करें।",
+          "दस्तावेज अपलोड करें।",
+          "RTO में ड्राइविंग टेस्ट के लिए स्लॉट बुक करें।",
+          "टेस्ट पास करें और स्थायी डीएल प्राप्त करें।",
         ],
         bn: [
-          "ই-ডিস্ট্রিক্ট পোর্টালে যান।",
-          "ফর্ম পূরণ করুন।",
-          "নথিপত্র আপলোড করুন।",
-          "অ্যাপয়েন্টমেন্ট বুক করুন।",
-          "সাক্ষী সহ অফিসে যান।",
-          "স্বাক্ষর করুন এবং শংসাপত্র নিন।",
+          "পরিবহন পোর্টালে যান।",
+          "ড্রাইভিং লাইসেন্সের আবেদন করুন।",
+          "লার্নার্স নম্বর দিন।",
+          "টেস্ট স্লট বুক করুন।",
+          "RTO তে যান।",
+          "টেস্ট পাস করুন।",
         ],
         te: [
-          "ఇ-డిస్ట్రిక్ట్ పోర్టల్‌కు వెళ్లండి.",
-          "ఫారమ్ నింపండి.",
-          "పత్రాలను అప్‌లోడ్ చేయండి.",
-          "అపాయింట్‌మెంట్ బుక్ చేయండి.",
-          "సాక్షులతో కార్యాలయానికి వెళ్లండి.",
-          "సంతకం చేసి సర్టిఫికేట్ తీసుకోండి.",
+          "పరివాహన్ పోర్టల్‌కు వెళ్లండి.",
+          "డ్రైవింగ్ లైసెన్స్ కోసం దరఖాస్తు చేయండి.",
+          "లెర్నర్స్ నంబర్ ఇవ్వండి.",
+          "టెస్ట్ స్లాట్ బుక్ చేయండి.",
+          "RTO కు వెళ్లండి.",
+          "టెస్ట్ పాస్ అవ్వండి.",
         ],
         mr: [
-          "ई-डिस्ट्रिक्ट पोर्टलवर जा.",
-          "फॉर्म भरा.",
-          "कागदपत्रे अपलोड करा.",
-          "अपॉइंटमेंट बुक करा.",
-          "साक्षीदारांसह कार्यालयात जा.",
-          "स्वाक्षरी करा आणि प्रमाणपत्र घ्या.",
+          "परिवहन पोर्टलवर जा.",
+          "ड्रायव्हिंग लायसन्ससाठी अर्ज करा.",
+          "लर्निंग नंबर द्या.",
+          "टेस्ट स्लॉट बुक करा.",
+          "RTO ला भेट द्या.",
+          "टेस्ट पास करा.",
         ],
         ta: [
-          "இ-மாவட்ட தளத்திற்குச் செல்லவும்.",
-          "படிவத்தை நிரப்பவும்.",
-          "ஆவணங்களைப் பதிவேற்றவும்.",
-          "சந்திப்பை முன்பதிவு செய்யவும்.",
-          "சாட்சிகளுடன் அலுவலகத்திற்குச் செல்லவும்.",
-          "கையெழுத்திட்டு சான்றிதழைப் பெறவும்.",
+          "பரிவாஹன் தளத்திற்குச் செல்லவும்.",
+          "உரிமத்திற்கு விண்ணப்பிக்கவும்.",
+          "கற்றல் எண்ணை வழங்கவும்.",
+          "தேர்வுக்கான நேரத்தை பதிவு செய்யவும்.",
+          "RTO செல்லவும்.",
+          "தேர்வில் தேர்ச்சி பெறவும்.",
         ],
       },
     },
+    {
+      id: "vehicle_rc",
+      name: {
+        en: "Vehicle Registration (RC)",
+        hi: "वाहन पंजीकरण (RC)",
+        bn: "গাড়ির নিবন্ধন",
+        te: "వాహన నమోదు",
+        mr: "वाहन नोंदणी",
+        ta: "வாகன பதிவு",
+      },
+      meta: {
+        time: {
+          en: "7-15 Days",
+          hi: "7-15 दिन",
+          bn: "৭-১৫ দিন",
+          te: "7-15 రోజులు",
+          mr: "७-१५ दिवस",
+          ta: "7-15 நாட்கள்",
+        },
+        cost: {
+          en: "Varies by State",
+          hi: "राज्य अनुसार",
+          bn: "রাজ্য অনুযায়ী",
+          te: "రాష్ట్రం బట్టి",
+          mr: "राज्यानुसार",
+          ta: "மாநிலத்தைப் பொறுத்து",
+        },
+        docs: {
+          en: "Invoice, Insurance, ID",
+          hi: "चालान, बीमा, आईडी",
+          bn: "ইনভয়েস, বিমা, আইডি",
+          te: "ఇన్‌వాయిస్, బీమా, ID",
+          mr: "इन्व्हॉइस, विमा, आयडी",
+          ta: "விலைப்பட்டியல், காப்பீடு, ID",
+        },
+      },
+      url: "https://vahan.parivahan.gov.in/",
+      steps: {
+        en: [
+          "Ensure dealer has initiated registration on Vahan portal.",
+          "Pay required road tax and fees online.",
+          "RTO verifies the documents and chassis number.",
+          "Vehicle number is assigned.",
+          "Download digital RC from DigiLocker.",
+          "Smart card RC is sent via speed post.",
+        ],
+        hi: [
+          "सुनिश्चित करें कि डीलर ने वाहन पोर्टल पर पंजीकरण शुरू कर दिया है।",
+          "ऑनलाइन रोड टैक्स का भुगतान करें।",
+          "RTO दस्तावेजों को सत्यापित करता है।",
+          "वाहन संख्या आवंटित की जाती है।",
+          "डिजिलॉकर से डिजिटल आरसी डाउनलोड करें।",
+          "स्मार्ट कार्ड आरसी पोस्ट द्वारा भेजा जाता है।",
+        ],
+        bn: [
+          "ডিলার নিবন্ধন শুরু করেছে কিনা নিশ্চিত করুন।",
+          "ট্যাক্স প্রদান করুন।",
+          "RTO যাচাই করবে।",
+          "নম্বর বরাদ্দ করা হবে।",
+          "ডিজিটাল RC ডাউনলোড করুন।",
+          "স্মার্ট কার্ড পোস্ট করা হবে।",
+        ],
+        te: [
+          "డీలర్ నమోదు ప్రారంభించారని నిర్ధారించుకోండి.",
+          "పన్ను చెల్లించండి.",
+          "RTO ధృవీకరిస్తుంది.",
+          "నంబర్ కేటాయించబడుతుంది.",
+          "డిజిటల్ RC డౌన్‌లోడ్ చేయండి.",
+          "స్మార్ట్ కార్డ్ పోస్ట్ చేయబడుతుంది.",
+        ],
+        mr: [
+          "डीलरने नोंदणी सुरू केली असल्याची खात्री करा.",
+          "टॅक्स भरा.",
+          "RTO पडताळणी करेल.",
+          "नंबर वाटप केला जाईल.",
+          "डिजिटल RC डाउनलोड करा.",
+          "स्मार्ट कार्ड पोस्ट केले जाईल.",
+        ],
+        ta: [
+          "டீலர் பதிவை தொடங்கியுள்ளாரா என்பதை உறுதிப்படுத்தவும்.",
+          "வரி செலுத்தவும்.",
+          "RTO சரிபார்க்கும்.",
+          "எண் ஒதுக்கப்படும்.",
+          "டிஜிட்டல் RC ஐப் பதிவிறக்கவும்.",
+          "ஸ்மார்ட் கார்டு அனுப்பப்படும்.",
+        ],
+      },
+    },
+    // Banking & Financial Access
+    {
+      id: "bank_account",
+      name: {
+        en: "Open Bank Account (Jan Dhan)",
+        hi: "बैंक खाता खोलें (जन धन)",
+        bn: "ব্যাঙ্ক অ্যাকাউন্ট",
+        te: "బ్యాంక్ ఖాతా",
+        mr: "बँक खाते",
+        ta: "வங்கி கணக்கு",
+      },
+      meta: {
+        time: {
+          en: "Instant",
+          hi: "तत्काल",
+          bn: "তাত্ক্ষণিক",
+          te: "తక్షణమే",
+          mr: "त्वरित",
+          ta: "உடனடி",
+        },
+        cost: {
+          en: "Zero Balance",
+          hi: "जीरो बैलेंस",
+          bn: "শূন্য ব্যালেন্স",
+          te: "జీరో బ్యాలెన్స్",
+          mr: "झिरो बॅलन्स",
+          ta: "ஜீரோ பேலன்ஸ்",
+        },
+        docs: {
+          en: "Aadhaar, PAN",
+          hi: "आधार, पैन",
+          bn: "আধার, প্যান",
+          te: "ఆధార్, పాన్",
+          mr: "आधार, पॅन",
+          ta: "ஆதார், பான்",
+        },
+      },
+      url: "https://pmjdy.gov.in/",
+      steps: {
+        en: [
+          "Visit any bank branch or Bank Mitra.",
+          "Request the PMJDY account opening form.",
+          "Fill in the details and provide Aadhaar for e-KYC.",
+          "No initial deposit is required.",
+          "Collect your RuPay Debit card and passbook.",
+          "Ensure mobile number is linked for SMS alerts.",
+        ],
+        hi: [
+          "किसी भी बैंक शाखा या बैंक मित्र पर जाएं।",
+          "PMJDY खाता खोलने का फॉर्म मांगें।",
+          "ई-केवाईसी के लिए आधार प्रदान करें।",
+          "कोई प्रारंभिक जमा आवश्यक नहीं है।",
+          "अपना रुपे डेबिट कार्ड और पासबुक लें।",
+          "सुनिश्चित करें कि मोबाइल नंबर जुड़ा हुआ है।",
+        ],
+        bn: [
+          "ব্যাঙ্ক বা ব্যাঙ্ক মিত্রের কাছে যান।",
+          "ফর্ম পূরণ করুন।",
+          "আধার দিয়ে ই-কেওয়াইসি করুন।",
+          "RuPay কার্ড সংগ্রহ করুন।",
+          "মোবাইল নম্বর লিঙ্ক করুন।",
+          "কোন প্রাথমিক জমার প্রয়োজন নেই।",
+        ],
+        te: [
+          "బ్యాంకు లేదా బ్యాంక్ మిత్రను సందర్శించండి.",
+          "ఫారమ్ నింపండి.",
+          "ఆధార్‌తో ఇ-కైవైసి చేయండి.",
+          "RuPay కార్డు తీసుకోండి.",
+          "మొబైల్ నంబర్ లింక్ చేయండి.",
+          "ప్రారంభ డిపాజిట్ అవసరం లేదు.",
+        ],
+        mr: [
+          "बँक किंवा बँक मित्राला भेट द्या.",
+          "फॉर्म भरा.",
+          "आधारसह ई-केवायसी करा.",
+          "RuPay कार्ड गोळा करा.",
+          "मोबाईल नंबर लिंक करा.",
+          "कोणत्याही प्रारंभिक ठेव आवश्यक नाही.",
+        ],
+        ta: [
+          "வங்கி அல்லது வங்கி மித்ராவை அணுகவும்.",
+          "படிவத்தை நிரப்பவும்.",
+          "ஆதார் மூலம் இ-கேஒய்சி செய்யவும்.",
+          "RuPay கார்டைப் பெறவும்.",
+          "மொபைல் எண்ணை இணைக்கவும்.",
+          "ஆரம்ப வைப்பு தேவையில்லை.",
+        ],
+      },
+    },
+    // Healthcare & Social Security
+    {
+      id: "ayushman_card",
+      name: {
+        en: "Ayushman Bharat Card Apply",
+        hi: "आयुष्मान कार्ड आवेदन",
+        bn: "আয়ুষ্মান কার্ড",
+        te: "ఆయుష్మాన్ కార్డ్",
+        mr: "आयुष्मान कार्ड",
+        ta: "ஆயுஷ்மான் கார்டு",
+      },
+      meta: {
+        time: {
+          en: "Instant Approval",
+          hi: "तत्काल",
+          bn: "তাত্ক্ষণিক",
+          te: "తక్షణమే",
+          mr: "त्वरित",
+          ta: "உடனடி",
+        },
+        cost: {
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
+        },
+        docs: {
+          en: "Aadhaar, Ration Card",
+          hi: "आधार, राशन कार्ड",
+          bn: "আধার, রেশন কার্ড",
+          te: "ఆధార్, రేషన్ కార్డ్",
+          mr: "आधार, रेशन कार्ड",
+          ta: "ஆதார், ரேஷன் அட்டை",
+        },
+      },
+      url: "https://beneficiary.nha.gov.in/",
+      steps: {
+        en: [
+          "Visit the PMJAY Beneficiary Portal.",
+          "Login using Mobile Number and OTP.",
+          "Search for your name in the eligible list (SECC data).",
+          "Complete e-KYC using Aadhaar.",
+          "Wait for instant approval from the system.",
+          "Download the PMJAY card PDF.",
+        ],
+        hi: [
+          "PMJAY लाभार्थी पोर्टल पर जाएं।",
+          "मोबाइल नंबर और OTP का उपयोग करके लॉगिन करें।",
+          "पात्र सूची में अपना नाम खोजें।",
+          "आधार का उपयोग करके ई-केवाईसी पूरा करें।",
+          "तत्काल अनुमोदन की प्रतीक्षा करें।",
+          "PMJAY कार्ड पीडीएफ डाउनलोड करें।",
+        ],
+        bn: [
+          "PMJAY পোর্টালে যান।",
+          "লগইন করুন।",
+          "তালিকা থেকে নাম খুঁজুন।",
+          "আধার দিয়ে ই-কেওয়াইসি করুন।",
+          "অনুমোদনের জন্য অপেক্ষা করুন।",
+          "কার্ড ডাউনলোড করুন।",
+        ],
+        te: [
+          "PMJAY పోర్టల్‌కు వెళ్లండి.",
+          "లాగిన్ అవ్వండి.",
+          "జాబితాలో పేరును కనుగొనండి.",
+          "ఆధార్‌తో ఇ-కైవైసి చేయండి.",
+          "ఆమోదం కోసం వేచి ఉండండి.",
+          "కార్డును డౌన్‌లోడ్ చేయండి.",
+        ],
+        mr: [
+          "PMJAY पोर्टलवर जा.",
+          "लॉगिन करा.",
+          "यादीतून नाव शोधा.",
+          "आधारसह ई-केवायसी करा.",
+          "मंजुरीची प्रतीक्षा करा.",
+          "कार्ड डाउनलोड करा.",
+        ],
+        ta: [
+          "PMJAY தளத்திற்குச் செல்லவும்.",
+          "உள்நுழையவும்.",
+          "பட்டியலில் பெயரைத் தேடவும்.",
+          "ஆதார் மூலம் இ-கேஒய்சி செய்யவும்.",
+          "ஒப்புதலுக்கு காத்திருக்கவும்.",
+          "அட்டையைப் பதிவிறக்கவும்.",
+        ],
+      },
+    },
+    // Education & Exams
+    {
+      id: "scholarship_apply",
+      name: {
+        en: "Scholarship Application (NSP)",
+        hi: "छात्रवृत्ति आवेदन (NSP)",
+        bn: "বৃত্তি আবেদন",
+        te: "స్కాలర్‌షిప్ దరఖాస్తు",
+        mr: "शिष्यवृत्ती अर्ज",
+        ta: "உதவித்தொகை விண்ணப்பம்",
+      },
+      meta: {
+        time: {
+          en: "15-45 Days",
+          hi: "15-45 दिन",
+          bn: "১৫-৪৫ দিন",
+          te: "15-45 రోజులు",
+          mr: "१५-४५ दिवस",
+          ta: "15-45 நாட்கள்",
+        },
+        cost: {
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
+        },
+        docs: {
+          en: "Income Cert, Marks, Bank",
+          hi: "आय प्रमाण, अंक, बैंक",
+          bn: "আয়, মার্কস, ব্যাঙ্ক",
+          te: "ఆదాయం, మార్కులు, బ్యాంక్",
+          mr: "उत्पन्न, गुण, बँक",
+          ta: "வருமானம், மதிப்பெண்கள், வங்கி",
+        },
+      },
+      url: "https://scholarships.gov.in/",
+      steps: {
+        en: [
+          "Visit the National Scholarship Portal (NSP).",
+          "Register as a New Student generating an Application ID.",
+          "Login and fill out the detailed application form.",
+          "Upload Income, Caste, and Bonafide certificates.",
+          "Submit the application for Institute verification.",
+          "Track application status till DBT disbursement.",
+        ],
+        hi: [
+          "राष्ट्रीय छात्रवृत्ति पोर्टल (NSP) पर जाएं।",
+          "नए छात्र के रूप में पंजीकरण करें।",
+          "विस्तृत आवेदन पत्र भरें।",
+          "आय, जाति और बोनाफाइड प्रमाण पत्र अपलोड करें।",
+          "सत्यापन के लिए आवेदन जमा करें।",
+          "DBT संवितरण तक स्थिति ट्रैक करें।",
+        ],
+        bn: [
+          "NSP পোর্টালে যান।",
+          "নতুন ছাত্র হিসেবে নিবন্ধন করুন।",
+          "ফর্ম পূরণ করুন।",
+          "নথিপত্র আপলোড করুন।",
+          "যাচাইয়ের জন্য জমা দিন।",
+          "স্ট্যাটাস ট্র্যাক করুন।",
+        ],
+        te: [
+          "NSP పోర్టల్‌కు వెళ్లండి.",
+          "కొత్త విద్యార్థిగా నమోదు చేయండి.",
+          "ఫారమ్ నింపండి.",
+          "పత్రాలను అప్‌లోడ్ చేయండి.",
+          "ధృవీకరణ కోసం సమర్పించండి.",
+          "స్థితిని ట్రాక్ చేయండి.",
+        ],
+        mr: [
+          "NSP पोर्टलवर जा.",
+          "नवीन विद्यार्थी म्हणून नोंदणी करा.",
+          "फॉर्म भरा.",
+          "कागदपत्रे अपलोड करा.",
+          "पडताळणीसाठी सबमिट करा.",
+          "स्थिती ट्रॅक करा.",
+        ],
+        ta: [
+          "NSP தளத்திற்குச் செல்லவும்.",
+          "புதிய மாணவராகப் பதிவு செய்யவும்.",
+          "படிவத்தை நிரப்பவும்.",
+          "ஆவணங்களைப் பதிவேற்றவும்.",
+          "சரிபார்ப்புக்கு சமர்ப்பிக்கவும்.",
+          "நிலையைக் கண்காணிக்கவும்.",
+        ],
+      },
+    },
+    // Employment & Labour
+    {
+      id: "mgnrega_card",
+      name: {
+        en: "MGNREGA Job Card Apply",
+        hi: "मनरेगा जॉब कार्ड",
+        bn: "মনরেগা জব কার্ড",
+        te: "MGNREGA జాబ్ కార్డ్",
+        mr: "मनरेगा जॉब कार्ड",
+        ta: "MGNREGA வேலை அட்டை",
+      },
+      meta: {
+        time: {
+          en: "15 Days",
+          hi: "15 दिन",
+          bn: "১৫ দিন",
+          te: "15 రోజులు",
+          mr: "१५ दिवस",
+          ta: "15 நாட்கள்",
+        },
+        cost: {
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
+        },
+        docs: {
+          en: "Aadhaar, Photo, Bank A/C",
+          hi: "आधार, फोटो, बैंक खाता",
+          bn: "আধার, ছবি, ব্যাঙ্ক",
+          te: "ఆధార్, ఫోటో, బ్యాంక్",
+          mr: "आधार, फोटो, बँक",
+          ta: "ஆதார், புகைப்படம், வங்கி",
+        },
+      },
+      url: "https://nrega.nic.in/",
+      steps: {
+        en: [
+          "Visit your local Gram Panchayat office.",
+          "Submit a written or oral request for registration.",
+          "Provide Aadhaar and Bank account details of adult members.",
+          "Gram Rozgar Sahayak verifies local residence.",
+          "Job Card is issued within 15 days.",
+          "Demand work and get allocation within 15 days.",
+        ],
+        hi: [
+          "अपने स्थानीय ग्राम पंचायत कार्यालय पर जाएं।",
+          "पंजीकरण के लिए अनुरोध जमा करें।",
+          "वयस्क सदस्यों का आधार और बैंक विवरण दें।",
+          "ग्राम रोजगार सहायक निवास की पुष्टि करता है।",
+          "15 दिनों के भीतर जॉब कार्ड जारी किया जाता है।",
+          "काम की मांग करें।",
+        ],
+        bn: [
+          "গ্রাম পঞ্চায়েতে যান।",
+          "নিবন্ধনের জন্য অনুরোধ করুন।",
+          "আধার ও ব্যাঙ্ক বিবরণ দিন।",
+          "সহায়ক যাচাই করবে।",
+          "জব কার্ড প্রদান করা হবে।",
+          "কাজের দাবি করুন।",
+        ],
+        te: [
+          "గ్రామ పంచాయతీకి వెళ్లండి.",
+          "నమోదు కోసం అభ్యర్థించండి.",
+          "ఆధార్ & బ్యాంక్ వివరాలను ఇవ్వండి.",
+          "సహాయక్ ధృవీకరిస్తారు.",
+          "జాబ్ కార్డ్ ఇవ్వబడుతుంది.",
+          "పని కోసం అడగండి.",
+        ],
+        mr: [
+          "ग्रामपंचायतीला भेट द्या.",
+          "नोंदणीसाठी विनंती करा.",
+          "आधार आणि बँक तपशील द्या.",
+          "सहाय्यक पडताळणी करेल.",
+          "जॉब कार्ड दिले जाईल.",
+          "कामाची मागणी करा.",
+        ],
+        ta: [
+          "கிராம பஞ்சாயத்திற்குச் செல்லவும்.",
+          "பதிவு செய்ய கோரவும்.",
+          "ஆதார் மற்றும் வங்கி விவரங்களை வழங்கவும்.",
+          "உதவியாளர் சரிபார்ப்பார்.",
+          "வேலை அட்டை வழங்கப்படும்.",
+          "வேலை கேட்கவும்.",
+        ],
+      },
+    },
+    // Business & Startup Services
     {
       id: "udyam_msme",
       name: {
@@ -1331,12 +1267,12 @@ const MOCK_DB = {
       url: "https://udyamregistration.gov.in/",
       steps: {
         en: [
-          "Visit the official Udyam Registration portal (udyamregistration.gov.in).",
-          "Enter your Aadhaar number and name, then validate using OTP.",
-          "Provide your PAN card details for automatic verification.",
-          "Fill in enterprise details, plant location, and select relevant NIC Codes.",
-          "Enter bank account information and investment/turnover details.",
-          "Submit the form with OTP and instantly download the Udyam Certificate.",
+          "Visit the official Udyam Registration portal.",
+          "Enter your Aadhaar number and validate using OTP.",
+          "Provide PAN for automatic verification.",
+          "Fill enterprise details and select NIC Codes.",
+          "Enter bank and investment details.",
+          "Submit with OTP and download the certificate.",
         ],
         hi: [
           "आधिकारिक उद्यम पोर्टल पर जाएं।",
@@ -1380,179 +1316,181 @@ const MOCK_DB = {
         ],
       },
     },
+    // Property & Legal
     {
-      id: "pcc",
+      id: "land_records",
       name: {
-        en: "Police Clearance Certificate (PCC)",
-        hi: "पुलिस क्लीयरेंस (PCC)",
-        bn: "পুলিশ ক্লিয়ারেন্স",
-        te: "పోలీస్ క్లియరెన్స్",
-        mr: "पोलीस क्लीयरन्स",
-        ta: "காவல்துறை அனுமதி சான்றிதழ்",
+        en: "Check Land Records (Bhulekh)",
+        hi: "भूलेख (भूमि रिकॉर्ड) देखें",
+        bn: "জমির রেকর্ড",
+        te: "భూ రికార్డులు",
+        mr: "जमिनीच्या नोंदी (भूलेख)",
+        ta: "நில பதிவுகள்",
       },
       meta: {
         time: {
-          en: "7-21 Days",
-          hi: "7-21 दिन",
-          bn: "৭-২১ দিন",
-          te: "7-21 రోజులు",
-          mr: "७-२१ दिवस",
-          ta: "7-21 நாட்கள்",
+          en: "Instant",
+          hi: "तत्काल",
+          bn: "তাত্ক্ষণিক",
+          te: "తక్షణమే",
+          mr: "त्वरित",
+          ta: "உடனடி",
         },
         cost: {
-          en: "₹500",
-          hi: "₹500",
-          bn: "₹৫০০",
-          te: "₹500",
-          mr: "₹५००",
-          ta: "₹500",
+          en: "Free",
+          hi: "निःशुल्क",
+          bn: "বিনামূল্যে",
+          te: "ఉచితం",
+          mr: "मोफत",
+          ta: "இலவசம்",
         },
         docs: {
-          en: "Passport, Address Proof",
-          hi: "पासपोर्ट, पता प्रमाण",
-          bn: "পাসপোর্ট, ঠিকানা প্রমাণ",
-          te: "పాస్‌పోర్ట్, చిరునామా రుజువు",
-          mr: "पासपोर्ट, पत्ता पुरावा",
-          ta: "பாஸ்போர்ட், முகவரி சான்று",
+          en: "Khasra/Khatauni Number",
+          hi: "खसरा/खतौनी नंबर",
+          bn: "খসরা নম্বর",
+          te: "ఖస్రా నంబర్",
+          mr: "खसरा नंबर",
+          ta: "கஸ்ரா எண்",
         },
       },
-      url: "https://www.passportindia.gov.in/",
+      url: "https://dilrmp.gov.in/",
       steps: {
         en: [
-          "Log in to the Passport Seva Online Portal.",
-          "Select the 'Apply for Police Clearance Certificate' link.",
-          "Fill the application form with passport details and current address.",
-          "Pay the ₹500 fee online and schedule an appointment at a PSK.",
-          "Visit the PSK with original documents for verification.",
-          "Wait for local police verification to complete; collect PCC thereafter.",
+          "Visit your state's specific Bhulekh/Land Record portal.",
+          "Select your District, Tehsil, and Village.",
+          "Search by Khasra/Gata Number or Owner's Name.",
+          "View the digitized RoR (Record of Rights).",
+          "Download or print the land record copy.",
+          "For legally certified copies, pay the nominal fee online.",
         ],
         hi: [
-          "पासपोर्ट सेवा पोर्टल पर लॉग इन करें।",
-          "'पुलिस क्लीयरेंस' लिंक चुनें।",
-          "आवेदन पत्र भरें।",
-          "₹500 शुल्क का भुगतान करें और अपॉइंटमेंट लें।",
-          "मूल दस्तावेजों के साथ PSK पर जाएं।",
-          "पुलिस सत्यापन के बाद PCC प्राप्त करें।",
+          "अपने राज्य के भूलेख पोर्टल पर जाएं।",
+          "अपना जिला, तहसील और गांव चुनें।",
+          "खसरा/गाटा संख्या या मालिक के नाम से खोजें।",
+          "डिजिटल अधिकार अभिलेख (RoR) देखें।",
+          "भूमि रिकॉर्ड की प्रति डाउनलोड या प्रिंट करें।",
+          "प्रमाणित प्रतियों के लिए ऑनलाइन शुल्क का भुगतान करें।",
         ],
         bn: [
-          "পাসপোর্ট পোর্টালে লগ ইন করুন।",
-          "PCC নির্বাচন করুন।",
-          "ফর্ম পূরণ করুন।",
-          "ফি প্রদান করুন।",
-          "PSK তে যান।",
-          "PCC সংগ্রহ করুন।",
+          "রাজ্যের পোর্টালে যান।",
+          "জেলা ও গ্রাম নির্বাচন করুন।",
+          "নম্বর দিয়ে খুঁজুন।",
+          "রেকর্ড দেখুন।",
+          "ডাউনলোড করুন।",
+          "ফি প্রদান করে শংসাপত্র নিন।",
         ],
         te: [
-          "పాస్‌పోర్ట్ పోర్టల్‌లోకి లాగిన్ అవ్వండి.",
-          "PCC ని ఎంచుకోండి.",
-          "ఫారమ్ నింపండి.",
-          "ఫీజు చెల్లించండి.",
-          "PSK కి వెళ్లండి.",
-          "PCC ని తీసుకోండి.",
+          "రాష్ట్ర పోర్టల్‌కు వెళ్లండి.",
+          "జిల్లా & గ్రామాన్ని ఎంచుకోండి.",
+          "నంబర్‌తో శోధించండి.",
+          "రికార్డును చూడండి.",
+          "డౌన్‌లోడ్ చేయండి.",
+          "ఫీజు చెల్లించి సర్టిఫికెట్ తీసుకోండి.",
         ],
         mr: [
-          "पासपोर्ट पोर्टलवर लॉग इन करा.",
-          "PCC निवडा.",
-          "फॉर्म भरा.",
-          "फी भरा.",
-          "PSK ला भेट द्या.",
-          "PCC गोळा करा.",
+          "राज्याच्या पोर्टलवर जा.",
+          "जिल्हा आणि गाव निवडा.",
+          "नंबरने शोधा.",
+          "रेकॉर्ड पहा.",
+          "डाउनलोड करा.",
+          "फी भरून प्रमाणपत्र घ्या.",
         ],
         ta: [
-          "பாஸ்போர்ட் தளத்தில் உள்நுழையவும்.",
-          "PCC ஐத் தேர்ந்தெடுக்கவும்.",
-          "படிவத்தை நிரப்பவும்.",
-          "கட்டணம் செலுத்தவும்.",
-          "PSK-க்குச் செல்லவும்.",
-          "PCC ஐப் பெறவும்.",
+          "மாநில தளத்திற்குச் செல்லவும்.",
+          "மாவட்டம் & கிராமத்தைத் தேர்ந்தெடுக்கவும்.",
+          "எண் மூலம் தேடவும்.",
+          "பதிவைக் காணவும்.",
+          "பதிவிறக்கவும்.",
+          "கட்டணம் செலுத்தி சான்றிதழைப் பெறவும்.",
         ],
       },
     },
+    // Utilities & Civic Services
     {
-      id: "domicile_cert",
+      id: "electricity_bill",
       name: {
-        en: "Apply for Domicile Certificate",
-        hi: "अधिवास (डोमिसाइल) प्रमाण पत्र",
-        bn: "ডোমিসাইল শংসাপত্র",
-        te: "నివాస ధృవీకరణ పత్రం",
-        mr: "अधिवास प्रमाणपत्र",
-        ta: "இருப்பிடச் சான்றிதழ்",
+        en: "Pay Electricity Bill / New Connection",
+        hi: "बिजली बिल / नया कनेक्शन",
+        bn: "বিদ্যুৎ বিল",
+        te: "విద్యుత్ బిల్లు",
+        mr: "वीज बिल",
+        ta: "மின் கட்டணம்",
       },
       meta: {
         time: {
-          en: "10-20 Days",
-          hi: "10-20 दिन",
-          bn: "১০-২০ দিন",
-          te: "10-20 రోజులు",
-          mr: "१०-२० दिवस",
-          ta: "10-20 நாட்கள்",
+          en: "Instant",
+          hi: "तत्काल",
+          bn: "তাত্ক্ষণিক",
+          te: "తక్షణమే",
+          mr: "त्वरित",
+          ta: "உடனடி",
         },
         cost: {
-          en: "₹15 - ₹30",
-          hi: "₹15 - ₹30",
-          bn: "₹১৫ - ₹৩০",
-          te: "₹15 - ₹30",
-          mr: "₹१५ - ₹३०",
-          ta: "₹15 - ₹30",
+          en: "Varies",
+          hi: "बिल अनुसार",
+          bn: "ভিন্ন",
+          te: "మారుతుంది",
+          mr: "बदलते",
+          ta: "மாறுபடும்",
         },
         docs: {
-          en: "Aadhaar, Long-term Residence Proof",
-          hi: "आधार, दीर्घकालिक निवास प्रमाण",
-          bn: "আধার, দীর্ঘস্থায়ী আবাসিক প্রমাণ",
-          te: "ఆధార్, దీర్ఘకాలిక నివాస రుజువు",
-          mr: "आधार, दीर्घकालीन निवास पुरावा",
-          ta: "ஆதார், நீண்ட கால குடியிருப்பு சான்று",
+          en: "Consumer Number",
+          hi: "उपभोक्ता संख्या",
+          bn: "গ্রাহক নম্বর",
+          te: "వినియోగదారు సంఖ్య",
+          mr: "ग्राहक क्रमांक",
+          ta: "நுகர்வோர் எண்",
         },
       },
-      url: "https://www.india.gov.in/topics/certificates",
+      url: "https://www.bharatbillpay.com/",
       steps: {
         en: [
-          "Visit your state's e-District or citizen service portal.",
-          "Register and select the 'Domicile/Residence Certificate' option.",
-          "Fill the application detailing your period of stay in the state.",
-          "Upload proofs like utility bills (last 5-10 years), school certs, and Aadhaar.",
-          "Submit and pay the processing fee.",
-          "Download the certificate once verified by the local revenue officer (Tehsildar).",
+          "Open Bharat BillPay or your State Electricity Board portal.",
+          "Select your electricity distribution company (DISCOM).",
+          "Enter your Consumer Number/Account ID.",
+          "Fetch the exact bill amount.",
+          "Pay securely via UPI, Netbanking, or Card.",
+          "Download the payment receipt immediately.",
         ],
         hi: [
-          "अपने राज्य के ई-डिस्ट्रिक्ट पोर्टल पर जाएं।",
-          "'अधिवास प्रमाण पत्र' विकल्प चुनें।",
-          "आवेदन भरें।",
-          "उपयोगिता बिल और आधार जैसे प्रमाण अपलोड करें।",
-          "प्रसंस्करण शुल्क का भुगतान करें।",
-          "सत्यापित होने के बाद प्रमाण पत्र डाउनलोड करें।",
+          "भारत बिलपे या अपने राज्य बोर्ड पोर्टल पर जाएं।",
+          "अपनी बिजली वितरण कंपनी (DISCOM) चुनें।",
+          "अपना उपभोक्ता नंबर दर्ज करें।",
+          "बिल राशि प्राप्त करें।",
+          "सुरक्षित रूप से भुगतान करें।",
+          "भुगतान रसीद डाउनलोड करें।",
         ],
         bn: [
-          "ই-ডিস্ট্রিক্ট পোর্টালে যান।",
-          "ডোমিসাইল নির্বাচন করুন।",
-          "ফর্ম পূরণ করুন।",
-          "প্রমাণ আপলোড করুন।",
-          "ফি প্রদান করুন।",
-          "শংসাপত্র ডাউনলোড করুন।",
+          "বিলপে পোর্টালে যান।",
+          "বোর্ড নির্বাচন করুন।",
+          "নম্বর দিন।",
+          "বিল দেখুন।",
+          "পে করুন।",
+          "রসিদ ডাউনলোড করুন।",
         ],
         te: [
-          "ఇ-డిస్ట్రిక్ట్ పోర్టల్‌కు వెళ్లండి.",
-          "నివాస ధృవీకరణను ఎంచుకోండి.",
-          "ఫారమ్ నింపండి.",
-          "రుజువులను అప్‌లోడ్ చేయండి.",
-          "ఫీజు చెల్లించండి.",
-          "సర్టిఫికెట్ డౌన్‌లోడ్ చేయండి.",
+          "బిల్‌పే పోర్టల్‌కు వెళ్లండి.",
+          "బోర్డు ఎంచుకోండి.",
+          "నంబర్ ఇవ్వండి.",
+          "బిల్లు చూడండి.",
+          "పే చేయండి.",
+          "రసీదు డౌన్‌లోడ్ చేయండి.",
         ],
         mr: [
-          "ई-डिस्ट्रिक्ट पोर्टलवर जा.",
-          "अधिवास प्रमाणपत्र निवडा.",
-          "फॉर्म भरा.",
-          "पुरावे अपलोड करा.",
-          "फी भरा.",
-          "प्रमाणपत्र डाउनलोड करा.",
+          "बिलपे पोर्टलवर जा.",
+          "बोर्ड निवडा.",
+          "नंबर द्या.",
+          "बिल पहा.",
+          "पे करा.",
+          "पावती डाउनलोड करा.",
         ],
         ta: [
-          "இ-மாவட்ட தளத்திற்குச் செல்லவும்.",
-          "இருப்பிடச் சான்றிதழைத் தேர்ந்தெடுக்கவும்.",
-          "படிவத்தை நிரப்பவும்.",
-          "சான்றுகளைப் பதிவேற்றவும்.",
-          "கட்டணம் செலுத்தவும்.",
-          "சான்றிதழைப் பதிவிறக்கவும்.",
+          "பில்பே தளத்திற்குச் செல்லவும்.",
+          "வாரியத்தைத் தேர்ந்தெடுக்கவும்.",
+          "எண்ணை வழங்கவும்.",
+          "பில்லைக் காணவும்.",
+          "செலுத்தவும்.",
+          "ரசீதைப் பதிவிறக்கவும்.",
         ],
       },
     },
@@ -1613,7 +1551,7 @@ const MOCK_DB = {
         {
           title: {
             en: "Soil Health Card Scheme",
-            hi: "मृदा स्वास्थ्य कार्ड योजना",
+            hi: "मृदा स्वास्थ्य कार्ड",
             bn: "মৃত্তিকা স্বাস্থ্য কার্ড",
             te: "మట్టి ఆరోగ్య కార్డు",
             mr: "मृदा आरोग्य कार्ड",
@@ -1704,6 +1642,26 @@ const MOCK_DB = {
           benefit: "Free E-Learning",
           url: "https://pmevidya.education.gov.in/",
         },
+        {
+          title: {
+            en: "Skill India Mission",
+            hi: "स्किल इंडिया",
+            bn: "স্কিল ইন্ডিয়া",
+            te: "స్కిల్ ఇండియా",
+            mr: "स्किल इंडिया",
+            ta: "திறன் இந்தியா",
+          },
+          desc: {
+            en: "Empowers the youth with skill sets making them more employable.",
+            hi: "युवाओं के लिए कौशल प्रशिक्षण।",
+            bn: "দক্ষতা প্রশিক্ষণ।",
+            te: "నైపుణ్య శిక్షణ.",
+            mr: "कौशल्य प्रशिक्षण.",
+            ta: "திறன் பயிற்சி.",
+          },
+          benefit: "Skill Training",
+          url: "https://www.skillindiadigital.gov.in/",
+        },
       ],
     },
     {
@@ -1737,6 +1695,26 @@ const MOCK_DB = {
           },
           benefit: "₹5 Lakh Cover",
           url: "https://pmjay.gov.in/",
+        },
+        {
+          title: {
+            en: "National Health Mission (NHM)",
+            hi: "राष्ट्रीय स्वास्थ्य मिशन",
+            bn: "জাতীয় স্বাস্থ্য মিশন",
+            te: "జాతీయ ఆరోగ్య మిషన్",
+            mr: "राष्ट्रीय आरोग्य अभियान",
+            ta: "தேசிய சுகாதார பணி",
+          },
+          desc: {
+            en: "Providing accessible, affordable and quality health care.",
+            hi: "गुणवत्तापूर्ण स्वास्थ्य देखभाल।",
+            bn: "স্বাস্থ্যসেবা।",
+            te: "ఆరోగ్య సంరక్షణ.",
+            mr: "आरोग्य सेवा.",
+            ta: "சுகாதாரப் பராமரிப்பு.",
+          },
+          benefit: "Subsidized Care",
+          url: "https://nhm.gov.in/",
         },
         {
           title: {
@@ -1792,6 +1770,26 @@ const MOCK_DB = {
           benefit: "Guaranteed Work",
           url: "https://nrega.nic.in/",
         },
+        {
+          title: {
+            en: "National Career Service",
+            hi: "राष्ट्रीय करियर सेवा",
+            bn: "জাতীয় ক্যারিয়ার পরিষেবা",
+            te: "జాతీయ కెరీర్ సేవ",
+            mr: "राष्ट्रीय करिअर सेवा",
+            ta: "தேசிய தொழில் சேவை",
+          },
+          desc: {
+            en: "Portal connecting job seekers with employers.",
+            hi: "नौकरी चाहने वालों और नियोक्ताओं को जोड़ना।",
+            bn: "ক্যারিয়ার পোর্টাল।",
+            te: "కెరీర్ పోర్టల్.",
+            mr: "करिअर पोर्टल.",
+            ta: "தொழில் தளம்.",
+          },
+          benefit: "Job Portal",
+          url: "https://www.ncs.gov.in/",
+        },
       ],
     },
     {
@@ -1808,6 +1806,46 @@ const MOCK_DB = {
       schemes: [
         {
           title: {
+            en: "Beti Bachao Beti Padhao",
+            hi: "बेटी बचाओ बेटी पढ़ाओ",
+            bn: "বেটি বাঁচাও",
+            te: "బేటీ బచావో",
+            mr: "बेटी बचाओ",
+            ta: "பெண் குழந்தையை காப்போம்",
+          },
+          desc: {
+            en: "Campaign for survival, protection, and education of the girl child.",
+            hi: "बालिकाओं की शिक्षा और संरक्षण।",
+            bn: "কন্যা সন্তানের শিক্ষা।",
+            te: "ఆడపిల్లల విద్య.",
+            mr: "मुलींचे शिक्षण.",
+            ta: "பெண் குழந்தைகளின் கல்வி.",
+          },
+          benefit: "Social Security",
+          url: "https://wcd.nic.in/bbbp-schemes",
+        },
+        {
+          title: {
+            en: "PM Matru Vandana Yojana",
+            hi: "पीएम मातृ वंदना योजना",
+            bn: "মাতৃ বন্দনা যোজনা",
+            te: "మాతృ వందన యోజన",
+            mr: "मातृ वंदना योजना",
+            ta: "மாத்ரு வந்தனா யோஜனா",
+          },
+          desc: {
+            en: "Maternity benefit program providing cash incentives.",
+            hi: "गर्भवती महिलाओं के लिए नकद प्रोत्साहन।",
+            bn: "নগদ প্রণোদনা।",
+            te: "నగదు ప్రోత్సాహకాలు.",
+            mr: "रोख प्रोत्साहन.",
+            ta: "பண ஊக்கத்தொகை.",
+          },
+          benefit: "₹5,000 Cash",
+          url: "https://wcd.nic.in/schemes/pradhan-mantri-matru-vandana-yojana",
+        },
+        {
+          title: {
             en: "Sukanya Samriddhi Yojana",
             hi: "सुकन्या समृद्धि योजना",
             bn: "সুকন্যা সমৃদ্ধি যোজনা",
@@ -1816,7 +1854,7 @@ const MOCK_DB = {
             ta: "சுகன்யா சம்ருத்தி யோஜனா",
           },
           desc: {
-            en: "Government-backed savings scheme for parents to secure the future of their girl child.",
+            en: "Government-backed savings scheme to secure the future of girl child.",
             hi: "बालिकाओं के लिए बचत योजना।",
             bn: "কন্যা সন্তানের জন্য সঞ্চয়।",
             te: "ఆడపిల్లల కోసం పొదుపు.",
@@ -1860,18 +1898,38 @@ const MOCK_DB = {
           benefit: "Housing Subsidy",
           url: "https://pmaymis.gov.in/",
         },
+        {
+          title: {
+            en: "Swachh Bharat Mission",
+            hi: "स्वच्छ भारत अभियान",
+            bn: "স্বচ্ছ ভারত মিশন",
+            te: "స్వచ్ఛ భారత్ మిషన్",
+            mr: "स्वच्छ भारत अभियान",
+            ta: "தூய்மை இந்தியா திட்டம்",
+          },
+          desc: {
+            en: "Aiming to achieve an open-defecation-free India.",
+            hi: "शौचालय निर्माण हेतु सब्सिडी।",
+            bn: "শৌচালয় নির্মাণের জন্য ভর্তুকি।",
+            te: "మరుగుదొడ్డి నిర్మాణానికి సబ్సిడీ.",
+            mr: "शौचालय बांधणीसाठी सबसिडी.",
+            ta: "கழிப்பறை கட்ட மானியம்.",
+          },
+          benefit: "Toilet Subsidy",
+          url: "https://swachhbharatmission.gov.in/",
+        },
       ],
     },
     {
       id: "finance",
       icon: "fa-building-columns",
       name: {
-        en: "Finance & Banking",
-        hi: "वित्त और बैंकिंग",
-        bn: "অর্থ ও ব্যাংকিং",
-        te: "ఫైనాన్స్ & బ్యాంకింగ్",
-        mr: "वित्त आणि बँकिंग",
-        ta: "நிதி மற்றும் வங்கி",
+        en: "Finance, Banking & Insurance",
+        hi: "वित्त, बैंकिंग और बीमा",
+        bn: "অর্থ, ব্যাংকিং ও বীমা",
+        te: "ఫైనాన్స్, బ్యాంకింగ్ & భీమా",
+        mr: "वित्त, बँकिंग आणि विमा",
+        ta: "நிதி, வங்கி மற்றும் காப்பீடு",
       },
       schemes: [
         {
@@ -1914,14 +1972,34 @@ const MOCK_DB = {
           benefit: "₹1k-5k / Month",
           url: "https://pfrda.org.in/",
         },
+        {
+          title: {
+            en: "Mudra Loans",
+            hi: "मुद्रा ऋण",
+            bn: "মুদ্রা ঋণ",
+            te: "ముద్రా రుణాలు",
+            mr: "मुद्रा कर्ज",
+            ta: "முத்ரா கடன்கள்",
+          },
+          desc: {
+            en: "Loans up to ₹10 lakh to non-corporate, non-farm small/micro enterprises.",
+            hi: "छोटे उद्यमों के लिए ऋण।",
+            bn: "ছোট ব্যবসার জন্য ঋণ।",
+            te: "చిన్న వ్యాపారాలకు రుణాలు.",
+            mr: "लहान व्यवसायांसाठी कर्ज.",
+            ta: "சிறிறு தொழில்களுக்கான கடன்கள்.",
+          },
+          benefit: "Up to ₹10L Loan",
+          url: "https://www.mudra.org.in/",
+        },
       ],
     },
     {
       id: "business",
       icon: "fa-industry",
       name: {
-        en: "MSME & Startups",
-        hi: "व्यापार और स्टार्टअप",
+        en: "Business, MSME & Startups",
+        hi: "व्यापार, MSME और स्टार्टअप",
         bn: "এমএসএমই ও স্টার্টআপ",
         te: "MSME & స్టార్టప్‌లు",
         mr: "MSME आणि स्टार्टअप्स",
@@ -1947,6 +2025,26 @@ const MOCK_DB = {
           },
           benefit: "Official ID",
           url: "https://udyamregistration.gov.in/",
+        },
+        {
+          title: {
+            en: "Startup India Seed Fund",
+            hi: "स्टार्टअप इंडिया सीड फंड",
+            bn: "স্টার্টআপ সিড ফান্ড",
+            te: "స్టార్టప్ సీడ్ ఫండ్",
+            mr: "स्टार्टअप सीड फंड",
+            ta: "ஸ்டார்ட்அப் விதை நிதி",
+          },
+          desc: {
+            en: "Provides financial assistance to startups for proof of concept.",
+            hi: "स्टार्टअप्स के लिए वित्तीय सहायता।",
+            bn: "স্টার্টআপদের জন্য আর্থিক সহায়তা।",
+            te: "స్టార్టప్‌లకు ఆర్థిక సహాయం.",
+            mr: "स्टार्टअप्ससाठी आर्थिक मदत.",
+            ta: "ஸ்டார்ட்அப்களுக்கான நிதி உதவி.",
+          },
+          benefit: "Seed Capital",
+          url: "https://seedfund.startupindia.gov.in/",
         },
       ],
     },
@@ -1982,14 +2080,34 @@ const MOCK_DB = {
           benefit: "Monthly Pension",
           url: "https://nsap.nic.in/",
         },
+        {
+          title: {
+            en: "SC/ST Welfare Schemes",
+            hi: "SC/ST कल्याण योजनाएं",
+            bn: "SC/ST কল্যাণ",
+            te: "SC/ST సంక్షేమం",
+            mr: "SC/ST कल्याण",
+            ta: "SC/ST நலம்",
+          },
+          desc: {
+            en: "Targeted schemes including scholarships and hostels for marginalized groups.",
+            hi: "छात्रवृत्ति और कल्याण कोष।",
+            bn: "বৃত্তি এবং কল্যাণ তহবিল।",
+            te: "స్కాలర్‌షిప్‌లు మరియు సంక్షేమ నిధులు.",
+            mr: "शिष्यवृत्ती आणि कल्याण निधी.",
+            ta: "உதவித்தொகை மற்றும் நலன்புரி நிதிகள்.",
+          },
+          benefit: "Financial Grants",
+          url: "https://socialjustice.gov.in/",
+        },
       ],
     },
     {
       id: "digital",
       icon: "fa-fingerprint",
       name: {
-        en: "Digital Identity",
-        hi: "डिजिटल पहचान",
+        en: "Digital Governance & Identity",
+        hi: "डिजिटल गवर्नेंस और पहचान",
         bn: "ডিজিটাল পরিচয়",
         te: "డిజిటల్ గుర్తింపు",
         mr: "डिजिटल ओळख",
@@ -2016,14 +2134,34 @@ const MOCK_DB = {
           benefit: "Universal ID",
           url: "https://uidai.gov.in/",
         },
+        {
+          title: {
+            en: "DigiLocker",
+            hi: "डिजिलॉकर",
+            bn: "ডিজিলকার",
+            te: "డిజిలాకర్",
+            mr: "डिजिलॉकर",
+            ta: "டிஜிலாக்கர்",
+          },
+          desc: {
+            en: "Secure cloud-based platform for storage, sharing, and verification of documents.",
+            hi: "दस्तावेजों को सुरक्षित रखने का प्लेटफॉर्म।",
+            bn: "নথি সংরক্ষণের প্ল্যাটফর্ম।",
+            te: "పత్రాలను నిల్వ చేయడానికి వేదిక.",
+            mr: "कागदपत्रे साठवण्यासाठी व्यासपीठ.",
+            ta: "ஆவணங்களை சேமிப்பதற்கான தளம்.",
+          },
+          benefit: "Cloud Document",
+          url: "https://www.digilocker.gov.in/",
+        },
       ],
     },
     {
       id: "infrastructure",
       icon: "fa-solar-panel",
       name: {
-        en: "Energy & Infrastructure",
-        hi: "ऊर्जा और बुनियादी ढांचा",
+        en: "Infrastructure & Energy",
+        hi: "बुनियादी ढांचा और ऊर्जा",
         bn: "শক্তি ও পরিকাঠামো",
         te: "శక్తి & మౌలిక సదుపాయాలు",
         mr: "ऊर्जा आणि पायाभूत सुविधा",
@@ -2049,6 +2187,26 @@ const MOCK_DB = {
           },
           benefit: "Solar Subsidy",
           url: "https://pmkusum.mnre.gov.in/",
+        },
+        {
+          title: {
+            en: "Saubhagya Yojana",
+            hi: "सौभाग्य योजना",
+            bn: "সৌভাগ্য যোজনা",
+            te: "సౌభాగ్య యోజన",
+            mr: "सौभाग्य योजना",
+            ta: "சௌபாக்யா யோஜனா",
+          },
+          desc: {
+            en: "Provides free electricity connections to all un-electrified households.",
+            hi: "मुफ्त बिजली कनेक्शन।",
+            bn: "বিনামূল্যে বিদ্যুৎ সংযোগ।",
+            te: "ఉచిత విద్యుత్ కనెక్షన్.",
+            mr: "मोफत वीज कनेक्शन.",
+            ta: "இலவச மின் இணைப்பு.",
+          },
+          benefit: "Free Electricity",
+          url: "https://saubhagya.gov.in/",
         },
       ],
     },
@@ -2084,6 +2242,26 @@ const MOCK_DB = {
           benefit: "EV Subsidy",
           url: "https://heavyindustries.gov.in/",
         },
+        {
+          title: {
+            en: "Digital Driving License",
+            hi: "परिवहन सेवाएं",
+            bn: "পরিবহন পরিষেবা",
+            te: "పరివాహన్ సేవలు",
+            mr: "परिवहन सेवा",
+            ta: "பரிவாஹன் சேவைகள்",
+          },
+          desc: {
+            en: "Apply for a Learner's License, Driving License, or RC online.",
+            hi: "ऑनलाइन ड्राइविंग लाइसेंस सेवाएं।",
+            bn: "অনলাইন লাইসেন্স পরিষেবা।",
+            te: "ఆన్‌లైన్ లైసెన్స్ సేవలు.",
+            mr: "ऑनलाइन परवाना सेवा.",
+            ta: "ஆன்லைன் உரிம சேவைகள்.",
+          },
+          benefit: "Online License",
+          url: "https://parivahan.gov.in/",
+        },
       ],
     },
   ] as Category[],
@@ -2095,6 +2273,7 @@ const MOCK_DB = {
       "t-hero-badge": "Updated April 2026",
       "t-sec1-title": "Government Services Guide",
       "t-select-service": "SELECT A SERVICE:",
+      "t-search-services": "Search services...",
       "t-key-docs": "KEY DOCUMENTS",
       "t-step-label": "Step",
       "t-procedure-title": "Step-by-Step Procedure",
@@ -2103,11 +2282,14 @@ const MOCK_DB = {
       "t-search": "Search schemes...",
       "t-time": "Est. Time",
       "t-cost": "Fees/Cost",
-      "t-docs": "Key Documents",
-      "t-empty": "No schemes found for this search.",
+      "t-empty": "No items found for this search.",
       "toast-lang": "Language changed to English",
       "toast-copy": "Official link copied to clipboard!",
-      "t-error": "An error occurred while loading data.",
+      "t-chat-welcome":
+        "Hello! I am your Sahayak Setu AI Assistant. You can ask me how to apply for a PAN card, Voter ID, Aadhaar, or inquire about schemes for farmers, students, etc.",
+      "t-chat-input-placeholder": "Ask about any government service...",
+      "t-chat-disclaimer":
+        "*AI Disclaimer: Please verify all steps on the official portal.",
     },
     hi: {
       "t-hero-title": "सूचना के साथ नागरिकों का सशक्तिकरण",
@@ -2116,6 +2298,7 @@ const MOCK_DB = {
       "t-hero-badge": "अद्यतित अप्रैल 2026",
       "t-sec1-title": "सरकारी सेवाएं मार्गदर्शक",
       "t-select-service": "एक सेवा चुनें:",
+      "t-search-services": "सेवाएं खोजें...",
       "t-key-docs": "मुख्य दस्तावेज़",
       "t-step-label": "चरण",
       "t-procedure-title": "चरण-दर-चरण प्रक्रिया",
@@ -2124,11 +2307,14 @@ const MOCK_DB = {
       "t-search": "योजनाएं खोजें...",
       "t-time": "अनुमानित समय",
       "t-cost": "शुल्क/लागत",
-      "t-docs": "मुख्य दस्तावेज़",
-      "t-empty": "इस खोज के लिए कोई योजना नहीं मिली।",
+      "t-empty": "इस खोज के लिए कोई परिणाम नहीं मिला।",
       "toast-lang": "भाषा बदलकर हिंदी कर दी गई है",
       "toast-copy": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
-      "t-error": "डेटा लोड करते समय एक त्रुटि हुई।",
+      "t-chat-welcome":
+        "नमस्ते! मैं आपका सहायक सेतु एआई सहायक हूँ। आप मुझसे पैन कार्ड, आधार, या योजनाओं के बारे में पूछ सकते हैं।",
+      "t-chat-input-placeholder": "किसी भी सरकारी सेवा के बारे में पूछें...",
+      "t-chat-disclaimer":
+        "*एआई अस्वीकरण: कृपया आधिकारिक पोर्टल पर जानकारी सत्यापित करें।",
     },
     bn: {
       "t-hero-title": "তথ্যের মাধ্যমে নাগরিকদের ক্ষমতায়ন",
@@ -2137,6 +2323,7 @@ const MOCK_DB = {
       "t-hero-badge": "আপডেট এপ্রিল 2026",
       "t-sec1-title": "সরকারি পরিষেবা গাইড",
       "t-select-service": "একটি পরিষেবা নির্বাচন করুন:",
+      "t-search-services": "পরিষেবা খুঁজুন...",
       "t-key-docs": "প্রয়োজনীয় নথিপত্র",
       "t-step-label": "ধাপ",
       "t-procedure-title": "ধাপে ধাপে পদ্ধতি",
@@ -2145,11 +2332,15 @@ const MOCK_DB = {
       "t-search": "স্কিম খুঁজুন...",
       "t-time": "আনুমানিক সময়",
       "t-cost": "ফি/খরচ",
-      "t-docs": "প্রয়োজনীয় নথিপত্র",
-      "t-empty": "কোন স্কিম পাওয়া যায়নি।",
+      "t-empty": "কোন ফলাফল পাওয়া যায়নি।",
       "toast-lang": "ভাষা বাংলা করা হয়েছে",
       "toast-copy": "লিঙ্ক কপি করা হয়েছে!",
-      "t-error": "ডেটা লোড করার সময় একটি ত্রুটি হয়েছে।",
+      "t-chat-welcome":
+        "হ্যালো! আমি আপনার সহায়ক সেতু এআই সহকারী। আপনি আমাকে প্যান কার্ড, আধার বা বিভিন্ন স্কিম সম্পর্কে জিজ্ঞাসা করতে পারেন।",
+      "t-chat-input-placeholder":
+        "যেকোনো সরকারি পরিষেবা সম্পর্কে জিজ্ঞাসা করুন...",
+      "t-chat-disclaimer":
+        "*এআই দাবিদ্যাগ: অনুগ্রহ করে অফিসিয়াল পোর্টালে যাচাই করুন।",
     },
     te: {
       "t-hero-title": "సమాచారంతో పౌరుల సాధికారత",
@@ -2158,6 +2349,7 @@ const MOCK_DB = {
       "t-hero-badge": "నవీకరించబడింది ఏప్రిల్ 2026",
       "t-sec1-title": "ప్రభుత్వ సేవల మార్గదర్శి",
       "t-select-service": "ఒక సేవను ఎంచుకోండి:",
+      "t-search-services": "సేవలను శోధించండి...",
       "t-key-docs": "ముఖ్య పత్రాలు",
       "t-step-label": "దశ",
       "t-procedure-title": "దశలవారీ విధానం",
@@ -2166,11 +2358,14 @@ const MOCK_DB = {
       "t-search": "పథకాలను శోధించండి...",
       "t-time": "అంచనా సమయం",
       "t-cost": "రుసుము/ఖర్చు",
-      "t-docs": "ముఖ్య పత్రాలు",
-      "t-empty": "ఎలాంటి పథకాలు కనుగొనబడలేదు.",
+      "t-empty": "ఎలాంటి ఫలితాలు కనుగొనబడలేదు.",
       "toast-lang": "భాష తెలుగులోకి మార్చబడింది",
       "toast-copy": "లింక్ కాపీ చేయబడింది!",
-      "t-error": "డేటా లోడ్ అవుతున్నప్పుడు లోపం ఏర్పడింది.",
+      "t-chat-welcome":
+        "నమస్తే! నేను మీ సహాయక్ సేతు AI అసిస్టెంట్‌ని. మీరు పాన్ కార్డ్, ఆధార్ లేదా వివిధ పథకాల గురించి నన్ను అడగవచ్చు.",
+      "t-chat-input-placeholder": "ఏదైనా ప్రభుత్వ సేవ గురించి అడగండి...",
+      "t-chat-disclaimer":
+        "*AI నిరాకరణ: దయచేసి అధికారిక పోర్టల్‌లో సమాచారాన్ని ధృవీకరించండి.",
     },
     mr: {
       "t-hero-title": "माहितीसह नागरिकांचे सक्षमीकरण",
@@ -2179,6 +2374,7 @@ const MOCK_DB = {
       "t-hero-badge": "अद्यतनित एप्रिल 2026",
       "t-sec1-title": "सरकारी सेवा मार्गदर्शक",
       "t-select-service": "एक सेवा निवडा:",
+      "t-search-services": "सेवा शोधा...",
       "t-key-docs": "महत्त्वाची कागदपत्रे",
       "t-step-label": "पायरी",
       "t-procedure-title": "टप्प्याटप्प्याने प्रक्रिया",
@@ -2187,11 +2383,14 @@ const MOCK_DB = {
       "t-search": "योजना शोधा...",
       "t-time": "अंदाजे वेळ",
       "t-cost": "शुल्क/खर्च",
-      "t-docs": "महत्त्वाची कागदपत्रे",
-      "t-empty": "कोणतीही योजना आढळली नाही.",
+      "t-empty": "कोणतेही परिणाम आढळले नाहीत.",
       "toast-lang": "भाषा मराठीत बदलली",
       "toast-copy": "लिंक कॉपी केली!",
-      "t-error": "डेटा लोड करताना त्रुटी आली.",
+      "t-chat-welcome":
+        "नमस्कार! मी तुमचा सहाय्यक सेतू एआय सहाय्यक आहे. तुम्ही मला पॅन कार्ड, आधार किंवा योजनांबद्दल विचारू शकता.",
+      "t-chat-input-placeholder": "कोणत्याही सरकारी सेवेबद्दल विचारा...",
+      "t-chat-disclaimer":
+        "*एआय अस्वीकरण: कृपया अधिकृत पोर्टलवर माहिती सत्यापित करा.",
     },
     ta: {
       "t-hero-title": "தகவலுடன் குடிமக்களுக்கு அதிகாரமளித்தல்",
@@ -2200,63 +2399,98 @@ const MOCK_DB = {
       "t-hero-badge": "புதுப்பிக்கப்பட்டது ஏப்ரல் 2026",
       "t-sec1-title": "அரசு சேவைகள் வழிகாட்டி",
       "t-select-service": "ஒரு சேவையைத் தேர்ந்தெடுக்கவும்:",
+      "t-search-services": "சேவைகளைத் தேடவும்...",
       "t-key-docs": "முக்கிய ஆவணங்கள்",
       "t-step-label": "படி",
       "t-procedure-title": "படிப்படியான நடைமுறை",
-      "t-sec2-title": "திட்டங்கள் & நன்மைகள்",
+      "t-sec2-title": "திட்டங்கள் & நன்மைகள் எக்ஸ்ப்ளோரர்",
       "btn-apply": "அதிகாரப்பூர்வ தளம்",
       "t-search": "திட்டங்களைத் தேடுங்கள்...",
-      "t-time": "மதிப்பிடப்பட்ட நேரம்",
+      "t-time": "நேரம்",
       "t-cost": "கட்டணம்",
-      "t-docs": "முக்கிய ஆவணங்கள்",
-      "t-empty": "எந்த திட்டங்களும் காணப்படவில்லை.",
+      "t-empty": "முடிவுகள் எதுவும் காணப்படவில்லை.",
       "toast-lang": "மொழி தமிழுக்கு மாற்றப்பட்டது",
       "toast-copy": "இணைப்பு நகலெடுக்கப்பட்டது!",
-      "t-error": "தரவை ஏற்றும்போது பிழை ஏற்பட்டது.",
+      "t-chat-welcome":
+        "வணக்கம்! நான் உங்கள் சஹாயக் சேது AI உதவியாளர். பான் கார்டு, ஆதார் அல்லது திட்டங்கள் குறித்து நீங்கள் என்னிடம் கேட்கலாம்.",
+      "t-chat-input-placeholder": "எந்த அரசு சேவை பற்றியும் கேளுங்கள்...",
+      "t-chat-disclaimer":
+        "*AI மறுப்பு: அதிகாரப்பூர்வ இணையதளத்தில் சரிபார்க்கவும்.",
     },
   } as Record<string, Record<string, string>>,
 };
 
 // ==========================================
-// 3.5 BACKEND SECURITY SIMULATION LAYER
+// 3.5 CUSTOM RULE-BASED AI ENGINE (In-House RAG)
 // ==========================================
-// Implementing Database & Backend Safety practices
+const generateAIResponse = (
+  query: string,
+  lang: Language,
+  t: (k: string) => string,
+): string => {
+  const cleanQ = query.toLowerCase().trim();
 
-const SecureBackend = {
-  // 1. Logging + audit trails for critical actions
-  auditLog: (action: string, userPayload: any) => {
-    const timestamp = new Date().toISOString();
-    // In production, this would stream securely to Datadog, AWS CloudWatch, or Splunk
-    console.info(
-      `[SECURE AUDIT LOG] ${timestamp} | ${action} | Payload:`,
-      userPayload,
-    );
-  },
+  if (cleanQ.match(/\b(hi|hello|hey|help|start|namaste|hi there)\b/)) {
+    return t("t-chat-welcome");
+  }
 
-  // 2. Data validation at backend (not just frontend)
-  validateRequest: (payload: any) => {
-    if (typeof payload === "string" && /[<>"']/.test(payload)) {
-      throw new Error(
-        "403 Forbidden: Malicious payload detected by backend gateway validation.",
-      );
+  for (const s of MOCK_DB.services) {
+    const nameEn = s.name.en.toLowerCase();
+    const id = s.id.toLowerCase();
+    const tokens = nameEn.split(" ");
+    let match = false;
+
+    if (cleanQ.includes(nameEn) || cleanQ.includes(id)) {
+      match = true;
+    } else {
+      for (const token of tokens) {
+        if (token.length > 3 && cleanQ.includes(token)) {
+          match = true;
+          break;
+        }
+      }
     }
-  },
 
-  // 3. Use indexing for performance-critical queries (Simulated DB Index)
-  // Transforms arrays to Maps for O(1) lookups, avoiding N+1 query problems
-  indexedServices: new Map(MOCK_DB.services.map((s) => [s.id, s])),
-  indexedCategories: new Map(MOCK_DB.categories.map((c) => [c.id, c])),
+    if (match) {
+      const sName = s.name[lang] || s.name.en;
+      const sTime = s.meta.time[lang] || s.meta.time.en;
+      const sCost = s.meta.cost[lang] || s.meta.cost.en;
+      const steps = s.steps[lang] || s.steps.en;
+
+      let res = `<strong>${sName}</strong><br/>`;
+      res += `<em><small>${t("t-time")}: ${sTime} | ${t("t-cost")}: ${sCost}</small></em><br/><br/>`;
+      res += `<strong>${t("t-procedure-title")}:</strong><br/><ul style="margin-left:20px; margin-top:10px; display:flex; flex-direction:column; gap:8px;">`;
+      steps.forEach((step, idx) => {
+        res += `<li><strong>${t("t-step-label")} ${idx + 1}:</strong> ${step}</li>`;
+      });
+      res += `</ul>`;
+      if (s.url)
+        res += `<br/><a href="${s.url}" target="_blank" class="official-link-btn" style="display:inline-block; margin-top:10px; padding:8px 16px; background:var(--brand-saffron); color:#fff; border-radius:30px; font-weight:600; text-decoration:none;">${t("btn-apply")} <i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+      res += `<br/><br/><small style="color:var(--brand-saffron)">${t("t-chat-disclaimer")}</small>`;
+      return res;
+    }
+  }
+
+  for (const c of MOCK_DB.categories) {
+    const catEn = c.name.en.toLowerCase();
+    if (cleanQ.includes(catEn) || cleanQ.includes(c.id.toLowerCase())) {
+      let res = `Here are schemes for <strong>${c.name[lang] || c.name.en}</strong>:<br/><br/><ul style="margin-left:20px; display:flex; flex-direction:column; gap:10px;">`;
+      c.schemes.forEach((sch) => {
+        res += `<li><strong>${sch.title[lang] || sch.title.en}</strong>: ${sch.benefit} <br/><a href="${sch.url}" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">${t("btn-apply")}</a></li>`;
+      });
+      res += `</ul><br/><small style="color:var(--brand-saffron)">${t("t-chat-disclaimer")}</small>`;
+      return res;
+    }
+  }
+
+  return "I’m sorry, that request is outside of our policy and domain expertise.";
 };
 
 // ==========================================
-// 4. API-FIRST ARCHITECTURE (With Resiliency & Versioning)
+// 4. API-FIRST ARCHITECTURE (With Resiliency)
 // ==========================================
 const apiCache = new Map<string, any>();
 
-/**
- * Enterprise API Fetch Wrapper
- * Handles Timeouts, Exponential Backoff Retries, and Status Code mapping.
- */
 const fetchWithRetry = async <T,>(
   endpoint: string,
   options: { retries?: number; timeout?: number; method?: string } = {},
@@ -2276,38 +2510,18 @@ const fetchWithRetry = async <T,>(
             ),
           timeout,
         );
-
         setTimeout(() => {
           clearTimeout(timer);
-          // Simulate 2% failure rate for chaos engineering / resilience testing
-          const chaosRoll = Math.random();
-          if (chaosRoll > 0.98)
-            reject(new Error("500 Internal Server Error: Gateway failure."));
-          if (chaosRoll < 0.01)
-            reject(new Error("429 Too Many Requests: Rate limit exceeded."));
-
-          if (endpoint.includes("/v1/services")) {
-            resolve(Array.from(SecureBackend.indexedServices.values()) as any);
-          } else if (endpoint.includes("/v1/categories")) {
-            resolve(
-              Array.from(SecureBackend.indexedCategories.values()) as any,
-            );
-          } else {
-            reject(new Error("404 Not Found"));
-          }
-        }, 600); // Simulate network latency
+          if (endpoint.includes("/v1/services"))
+            resolve(MOCK_DB.services as any);
+          else if (endpoint.includes("/v1/categories"))
+            resolve(MOCK_DB.categories as any);
+          else reject(new Error("404 Not Found"));
+        }, 300);
       });
     } catch (error: any) {
-      if (
-        attempt === retries ||
-        error.message.includes("404") ||
-        error.message.includes("403")
-      )
-        throw error;
-      console.warn(
-        `[API] Retrying ${endpoint}... Attempt ${attempt + 1}. Error: ${error.message}`,
-      );
-      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt))); // Exponential backoff
+      if (attempt === retries) throw error;
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
     }
   }
   throw new Error("API Failure");
@@ -2315,23 +2529,13 @@ const fetchWithRetry = async <T,>(
 
 const apiService = {
   getServices: async (): Promise<GovernmentService[]> => {
-    SecureBackend.auditLog("GET /api/v1/services", {
-      status: "Initiated",
-      query: "all",
-    });
     if (apiCache.has("v1_services")) return apiCache.get("v1_services");
-
     const data = await fetchWithRetry<GovernmentService[]>("/api/v1/services");
     apiCache.set("v1_services", data);
     return data;
   },
   getCategories: async (): Promise<Category[]> => {
-    SecureBackend.auditLog("GET /api/v1/categories", {
-      status: "Initiated",
-      query: "all",
-    });
     if (apiCache.has("v1_categories")) return apiCache.get("v1_categories");
-
     const data = await fetchWithRetry<Category[]>("/api/v1/categories");
     apiCache.set("v1_categories", data);
     return data;
@@ -2342,12 +2546,18 @@ const apiService = {
 // 5. GLOBAL CONTEXTS (Separation of Concerns)
 // ==========================================
 interface AppContextType {
+  appMode: AppMode;
+  setAppMode: (m: AppMode) => void;
   lang: Language;
   setLang: (l: Language) => void;
   theme: Theme;
   toggleTheme: () => void;
   showToast: (msg: string, icon?: string) => void;
   t: (key: string) => string;
+  chatHistory: ChatMessage[];
+  addMessage: (m: ChatMessage) => void;
+  isChatOpen: boolean;
+  setChatOpen: (b: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -2359,7 +2569,7 @@ const useAppContext = () => {
 };
 
 // ==========================================
-// 6. ERROR BOUNDARY (Failure Handling)
+// 6. ERROR BOUNDARY
 // ==========================================
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -2372,28 +2582,12 @@ class ErrorBoundary extends Component<
   static getDerivedStateFromError() {
     return { hasError: true };
   }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught exception in component tree:", error, errorInfo);
-  }
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ padding: "3rem", textAlign: "center", color: "#EF4444" }}>
-          <h2>
-            <i className="fa-solid fa-triangle-exclamation"></i> Application
-            Error
-          </h2>
-          <p>Something went wrong. Our engineering team has been notified.</p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: "1rem",
-              padding: "10px 20px",
-              background: "#EF4444",
-              color: "#fff",
-              borderRadius: "8px",
-            }}
-          >
+          <h2>Application Error</h2>
+          <button onClick={() => window.location.reload()}>
             Reload Application
           </button>
         </div>
@@ -2403,9 +2597,6 @@ class ErrorBoundary extends Component<
   }
 }
 
-// ==========================================
-// 6.5 UX/UI ENGINEERING (Skeletons & Feedback)
-// ==========================================
 const Skeleton = ({
   width = "100%",
   height = "20px",
@@ -2421,15 +2612,45 @@ const Skeleton = ({
 );
 
 // ==========================================
-// 7. UI COMPONENTS (Modular, Reusable, Optimized)
+// 7. UI COMPONENTS
 // ==========================================
 
+const LegalFooter = () => (
+  <footer className="mandatory-legal-footer">
+    <div className="container">
+      <p>
+        <strong>Disclaimer:</strong> This website is for informational and
+        personal project purposes only. This platform is currently in
+        development and may contain inaccuracies. Please verify all information
+        independently through official government channels. We are not liable
+        for errors or omissions.
+      </p>
+    </div>
+  </footer>
+);
+
 const Navbar: React.FC = () => {
-  const { theme, toggleTheme, lang, setLang } = useAppContext();
+  const {
+    theme,
+    toggleTheme,
+    lang,
+    setLang,
+    appMode,
+    setAppMode,
+    setChatOpen,
+  } = useAppContext();
   return (
     <header className="navbar">
       <div className="nav-container">
-        <a href="#" className="logo" aria-label="Sahayak Setu Home">
+        <a
+          href="#"
+          className="logo"
+          onClick={(e) => {
+            e.preventDefault();
+            setAppMode("gateway");
+            setChatOpen(false);
+          }}
+        >
           <img
             src="logo.png"
             alt="Sahayak Setu Logo"
@@ -2441,6 +2662,16 @@ const Navbar: React.FC = () => {
           Sahayak Setu
         </a>
         <div className="nav-actions">
+          {appMode === "chat" && (
+            <button className="nav-text-btn" onClick={() => setAppMode("home")}>
+              Go to Homepage <i className="fa-solid fa-arrow-right"></i>
+            </button>
+          )}
+          {appMode === "home" && (
+            <button className="nav-text-btn" onClick={() => setAppMode("chat")}>
+              AI Assistant <i className="fa-solid fa-robot"></i>
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="icon-btn"
@@ -2468,6 +2699,150 @@ const Navbar: React.FC = () => {
         </div>
       </div>
     </header>
+  );
+};
+
+const Gateway: React.FC = () => {
+  const { setAppMode } = useAppContext();
+
+  return (
+    <div className="gateway-overlay">
+      <div className="gateway-content">
+        <img src="logo.png" alt="Sahayak Setu" className="gateway-logo" />
+        <h1>Welcome to Sahayak Setu</h1>
+        <p>How would you like to explore government services today?</p>
+
+        <div className="gateway-buttons">
+          <button
+            className="gateway-btn primary"
+            onClick={() => setAppMode("chat")}
+          >
+            <i className="fa-solid fa-robot"></i>
+            <span>Guided AI Assistant</span>
+            <small>Step-by-step chat guidance</small>
+          </button>
+          <button
+            className="gateway-btn secondary"
+            onClick={() => setAppMode("home")}
+          >
+            <i className="fa-solid fa-table-cells-large"></i>
+            <span>Self-Service Homepage</span>
+            <small>Browse all services manually</small>
+          </button>
+        </div>
+      </div>
+      <LegalFooter />
+    </div>
+  );
+};
+
+const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
+  isFullScreen = false,
+}) => {
+  const { chatHistory, addMessage, lang, t } = useAppContext();
+  const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const cleanInput = sanitizeInput(input);
+
+    addMessage({ id: Date.now().toString(), role: "user", text: cleanInput });
+    setInput("");
+
+    setTimeout(() => {
+      const responseHtml = generateAIResponse(cleanInput, lang, t);
+      addMessage({
+        id: (Date.now() + 1).toString(),
+        role: "ai",
+        text: responseHtml,
+        isHtml: true,
+      });
+    }, 600);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div
+      className={`chat-box-container ${isFullScreen ? "fullscreen" : "drawer"}`}
+    >
+      <div className="chat-messages" ref={scrollRef}>
+        {chatHistory.length === 0 && (
+          <div className="chat-empty-state">
+            <i className="fa-solid fa-robot"></i>
+            <h3>{t("t-chat-welcome")}</h3>
+          </div>
+        )}
+        {chatHistory.map((msg) => (
+          <div key={msg.id} className={`chat-bubble-wrapper ${msg.role}`}>
+            {msg.role === "ai" && (
+              <div className="chat-avatar">
+                <i className="fa-solid fa-robot"></i>
+              </div>
+            )}
+            <div className="chat-bubble">
+              {msg.isHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+              ) : (
+                msg.text
+              )}
+            </div>
+            {msg.role === "user" && (
+              <div className="chat-avatar user">
+                <i className="fa-solid fa-user"></i>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="chat-input-area">
+        <textarea
+          placeholder={t("t-chat-input-placeholder")}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={1}
+        />
+        <button onClick={handleSend} disabled={!input.trim()}>
+          <i className="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const FloatingChat: React.FC = () => {
+  const { isChatOpen, setChatOpen } = useAppContext();
+
+  return (
+    <>
+      <button
+        className={`fab-btn ${isChatOpen ? "active" : ""}`}
+        onClick={() => setChatOpen(!isChatOpen)}
+        aria-label="Toggle AI Assistant"
+      >
+        <i className={`fa-solid ${isChatOpen ? "fa-times" : "fa-robot"}`}></i>
+      </button>
+
+      {isChatOpen && (
+        <div className="chat-drawer-overlay">
+          <ChatBox isFullScreen={false} />
+        </div>
+      )}
+    </>
   );
 };
 
@@ -2500,53 +2875,59 @@ const ServicesSection: React.FC = () => {
   const [services, setServices] = useState<GovernmentService[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [deferredServiceSearch, setDeferredServiceSearch] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let isMounted = true;
-    apiService
-      .getServices()
-      .then((data) => {
-        if (!isMounted) return;
-        setServices(data);
-        if (data.length > 0) setSelectedId(data[0].id);
-        setLoading(false);
-      })
-      .catch((err: Error) => {
-        console.error("Failed to fetch services:", err);
-        if (isMounted) {
-          setErrorMsg(
-            err.message.includes("408")
-              ? "Connection timed out. Please check your internet and try again."
-              : "Unable to load the services guide. Please refresh the page.",
-          );
-          setLoading(false);
-        }
-      });
+    apiService.getServices().then((data) => {
+      if (!isMounted) return;
+      setServices(data);
+      if (data.length > 0) setSelectedId(data[0].id);
+      setLoading(false);
+    });
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const activeService = services.find((s) => s.id === selectedId);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = sanitizeInput(e.target.value);
+    setServiceSearch(val);
+    startTransition(() => {
+      setDeferredServiceSearch(val);
+    });
+  };
 
-  // SEO: Generate a "HowTo" Schema.org JSON-LD object for Google Rich Snippets
+  const filteredServices = useMemo(() => {
+    if (!deferredServiceSearch.trim()) return services;
+    const lowerSearch = deferredServiceSearch.toLowerCase();
+    return services.filter(
+      (s) =>
+        (s.name[lang] || s.name.en).toLowerCase().includes(lowerSearch) ||
+        s.name.en.toLowerCase().includes(lowerSearch),
+    );
+  }, [services, deferredServiceSearch, lang]);
+
+  // Auto-select first matching service when search results change
+  useEffect(() => {
+    if (filteredServices.length > 0 && deferredServiceSearch.trim() !== "") {
+      setSelectedId(filteredServices[0].id);
+    }
+  }, [filteredServices, deferredServiceSearch]);
+
+  const activeService =
+    services.find((s) => s.id === selectedId) || filteredServices[0];
+
   const howToSchema = useMemo(() => {
     if (!activeService) return null;
     return {
       "@type": "HowTo",
       name: activeService.name[lang] || activeService.name.en,
       description: `Step-by-step guide to ${activeService.name[lang] || activeService.name.en}`,
-      estimatedCost: {
-        "@type": "MonetaryAmount",
-        currency: "INR",
-        value:
-          (activeService.meta.cost[lang] || activeService.meta.cost.en).replace(
-            /[^0-9.]/g,
-            "",
-          ) || "0",
-      },
-      step: (activeService.steps[lang === "hi" ? "hi" : "en"] || []).map(
+      step: (activeService.steps[lang] || activeService.steps.en || []).map(
         (step, index) => ({
           "@type": "HowToStep",
           position: index + 1,
@@ -2556,7 +2937,6 @@ const ServicesSection: React.FC = () => {
     };
   }, [activeService, lang]);
 
-  // Inject Dynamic SEO based on active service
   useDynamicSEO(
     activeService
       ? activeService.name[lang] || activeService.name.en
@@ -2576,17 +2956,7 @@ const ServicesSection: React.FC = () => {
         </header>
         <div className="services-grid">
           <div className="service-controls">
-            <Skeleton
-              height="15px"
-              width="120px"
-              style={{ marginBottom: "6px" }}
-            />
             <Skeleton height="85px" borderRadius="8px" />
-            <Skeleton
-              height="70px"
-              borderRadius="8px"
-              style={{ marginTop: "1rem" }}
-            />
           </div>
           <div className="timeline-container">
             <Skeleton
@@ -2594,7 +2964,7 @@ const ServicesSection: React.FC = () => {
               width="200px"
               style={{ marginBottom: "1.5rem" }}
             />
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
                 style={{ display: "flex", gap: "16px", marginBottom: "1.5rem" }}
@@ -2609,29 +2979,12 @@ const ServicesSection: React.FC = () => {
     );
   }
 
-  if (errorMsg) {
-    return (
-      <article className="section-card empty-state" role="alert">
-        <i
-          className="fa-solid fa-triangle-exclamation"
-          style={{ color: "#EF4444" }}
-        ></i>
-        <p style={{ color: "#EF4444", fontWeight: 500, marginTop: "1rem" }}>
-          {errorMsg}
-        </p>
-        <button
-          className="official-link"
-          style={{ margin: "1.5rem auto 0", background: "var(--bg-base)" }}
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </button>
-      </article>
-    );
-  }
-
   return (
-    <article className="section-card" aria-labelledby="t-sec1-title">
+    <article
+      className="section-card"
+      aria-labelledby="t-sec1-title"
+      id="services-guide"
+    >
       <header className="section-header">
         <div className="section-header-icon">
           <i className="fa-solid fa-clipboard-check"></i>
@@ -2640,25 +2993,73 @@ const ServicesSection: React.FC = () => {
       </header>
 
       <div className="services-grid">
-        {/* Left Column: Exactly matching image_2ff856.png */}
         <div className="service-controls">
           <div className="service-selector-group">
             <label className="control-label-sm" id="select-service-lbl">
               {t("t-select-service")}
             </label>
+
+            <div
+              className="search-wrapper"
+              style={{ marginBottom: "8px", zIndex: 3 }}
+            >
+              <i
+                className="fa-solid fa-search"
+                style={{ fontSize: "0.85rem" }}
+              ></i>
+              <input
+                type="text"
+                className="search-input"
+                style={{
+                  minHeight: "38px",
+                  padding: "8px 12px 8px 36px",
+                  fontSize: "0.9rem",
+                  borderRadius: "var(--radius-sm)",
+                }}
+                placeholder={t("t-search-services")}
+                value={serviceSearch}
+                onChange={handleSearchChange}
+              />
+              {isPending && (
+                <i
+                  className="fa-solid fa-spinner fa-spin"
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    left: "auto",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "0.85rem",
+                  }}
+                ></i>
+              )}
+            </div>
+
             <div className="service-select-box">
-              <select
-                className="styled-select-bare"
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                aria-labelledby="select-service-lbl"
-              >
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name[lang] || s.name.en}
-                  </option>
-                ))}
-              </select>
+              {filteredServices.length === 0 ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    fontSize: "0.95rem",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {t("t-empty")}
+                </div>
+              ) : (
+                <select
+                  className="styled-select-bare"
+                  value={activeService?.id || ""}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  aria-labelledby="select-service-lbl"
+                >
+                  {filteredServices.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name[lang] || s.name.en}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {activeService && (
@@ -2729,43 +3130,50 @@ const ServicesSection: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Timeline exact match */}
         <div className="timeline-container">
-          <h3
-            style={{
-              marginBottom: "1.5rem",
-              fontSize: "1.15rem",
-              fontWeight: 700,
-              color: "var(--text-primary)",
-            }}
-          >
-            {t("t-procedure-title")}
-          </h3>
-          <ul className="custom-timeline" aria-live="polite">
-            {(
-              activeService?.steps[lang] ||
-              activeService?.steps["en"] ||
-              []
-            ).map((step, idx) => (
-              <li
-                key={idx}
-                className="custom-timeline-item"
-                style={{ animationDelay: `${idx * 0.08}s` }}
+          {activeService ? (
+            <>
+              <h3
+                style={{
+                  marginBottom: "1.5rem",
+                  fontSize: "1.15rem",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                }}
               >
-                <span className="step-label">
-                  {t("t-step-label")} {idx + 1}:
-                </span>{" "}
-                {step}
-              </li>
-            ))}
-          </ul>
+                {t("t-procedure-title")}
+              </h3>
+              <ul className="custom-timeline" aria-live="polite">
+                {(
+                  activeService.steps[lang] ||
+                  activeService.steps["en"] ||
+                  []
+                ).map((step, idx) => (
+                  <li
+                    key={idx}
+                    className="custom-timeline-item"
+                    style={{ animationDelay: `${idx * 0.08}s` }}
+                  >
+                    <span className="step-label">
+                      {t("t-step-label")} {idx + 1}:
+                    </span>{" "}
+                    {step}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="empty-state">
+              <i className="fa-solid fa-search"></i>
+              <p>{t("t-empty")}</p>
+            </div>
+          )}
         </div>
       </div>
     </article>
   );
 };
 
-// --- Optimized Child Component for React.memo Demonstration ---
 const SchemeCard = React.memo(
   ({
     scheme,
@@ -2777,7 +3185,6 @@ const SchemeCard = React.memo(
     onCopy: (url: string) => void;
   }) => {
     const { t, lang } = useAppContext();
-
     return (
       <div
         className="scheme-card"
@@ -2820,9 +3227,8 @@ const BenefitsSection: React.FC = () => {
   const [activeCat, setActiveCat] = useState<string>("agriculture");
   const [loading, setLoading] = useState(true);
 
-  // INP Optimization & Security (Rate Limiting via Debounce)
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 300); // 300ms debounce
+  const debouncedSearch = useDebounce(search, 300);
   const [deferredSearch, setDeferredSearch] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -2833,7 +3239,6 @@ const BenefitsSection: React.FC = () => {
     });
   }, []);
 
-  // Propagate debounced search into transition for optimal performance
   useEffect(() => {
     startTransition(() => {
       setDeferredSearch(debouncedSearch);
@@ -2841,12 +3246,9 @@ const BenefitsSection: React.FC = () => {
   }, [debouncedSearch]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // SECURITY: Input Validation & Sanitization (Prevent XSS)
-    const cleanInput = sanitizeInput(e.target.value);
-    setSearch(cleanInput);
+    setSearch(sanitizeInput(e.target.value));
   };
 
-  // useCallback prevents unnecessary re-renders of the memoized SchemeCard
   const handleCopy = useCallback(
     (url: string) => {
       navigator.clipboard
@@ -2856,7 +3258,6 @@ const BenefitsSection: React.FC = () => {
     [showToast, t],
   );
 
-  // Derived state memoized
   const filteredSchemes = useMemo(() => {
     if (!categories.length) return [];
     if (deferredSearch.trim()) {
@@ -2891,13 +3292,13 @@ const BenefitsSection: React.FC = () => {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "8px" }}
             >
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3].map((i) => (
                 <Skeleton key={i} height="48px" borderRadius="8px" />
               ))}
             </div>
           </aside>
           <div className="schemes-grid">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3].map((i) => (
               <Skeleton key={i} height="200px" borderRadius="12px" />
             ))}
           </div>
@@ -2907,7 +3308,7 @@ const BenefitsSection: React.FC = () => {
   }
 
   return (
-    <article className="section-card">
+    <article className="section-card" id="benefits-explorer">
       <header className="section-header">
         <div className="section-header-icon">
           <i className="fa-solid fa-hand-holding-dollar"></i>
@@ -2977,10 +3378,6 @@ const BenefitsSection: React.FC = () => {
   );
 };
 
-// ==========================================
-// 8. SIMULATED CODE SPLITTING (React.lazy)
-// ==========================================
-// In a real Webpack/Vite app, this would be: React.lazy(() => import('./ServicesSection'))
 const AsyncServicesSection = React.lazy(
   () =>
     new Promise<{ default: React.FC }>((resolve) =>
@@ -2994,10 +3391,8 @@ const AsyncBenefitsSection = React.lazy(
     ),
 );
 
-// ==========================================
-// 9. MAIN APPLICATION BOOTSTRAP
-// ==========================================
 export default function App() {
+  const [appMode, setAppModeState] = useState<AppMode>("gateway");
   const [lang, setLangState] = useState<Language>(CONFIG.defaultLang);
   const [theme, setThemeState] = useState<Theme>(CONFIG.defaultTheme);
   const [toast, setToast] = useState<{
@@ -3006,28 +3401,13 @@ export default function App() {
     id: number;
   } | null>(null);
 
-  // Base SEO Initialization
-  useDynamicSEO(
-    "Government Services Guide",
-    "Detailed step-by-step procedures for government responsibilities and a curated list of official benefits, subsidies, and scholarships.",
-  );
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isChatOpen, setChatOpen] = useState(false);
 
-  // SECURITY: Enforce HTTPS in Production (TLS everywhere)
-  useEffect(() => {
-    if (
-      CONFIG.isProd &&
-      typeof window !== "undefined" &&
-      window.location.protocol === "http:"
-    ) {
-      console.warn(
-        "Security Alert: Insecure HTTP detected. Redirecting to HTTPS...",
-      );
-      // In a real environment, uncomment to force redirect:
-      // window.location.href = window.location.href.replace(/^http:/, 'https:');
-    }
+  const addMessage = useCallback((msg: ChatMessage) => {
+    setChatHistory((prev) => [...prev, msg]);
   }, []);
 
-  // Elite pattern: Inject styles purely and isolate from React lifecycle
   const GlobalStyles = () => (
     <style>{`
       @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -3042,64 +3422,108 @@ export default function App() {
         --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
         --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-        --shadow-glow: 0 0 20px rgba(255, 153, 51, 0.15);
         --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-full: 9999px;
         --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       }
       [data-theme="dark"] {
-        --bg-base: #0B1120; --bg-surface: #1E293B; --bg-surface-hover: #334155;
-        --text-primary: #F8FAFC; --text-secondary: #CBD5E1; --text-muted: #64748B;
-        --border-light: #334155; --border-strong: #475569;
-        --brand-blue: #60A5FA; --brand-saffron-light: rgba(255, 153, 51, 0.15); --brand-green-light: rgba(19, 136, 8, 0.2);
-        --shadow-sm: 0 1px 2px rgba(0,0,0,0.5); --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4); --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.5);
+        --bg-base: #0A0A0A; --bg-surface: #141414; --bg-surface-hover: #1F1F1F;
+        --text-primary: #F5F5F5; --text-secondary: #A3A3A3; --text-muted: #737373;
+        --border-light: #262626; --border-strong: #404040;
+        --brand-blue: #3B82F6; --brand-saffron-light: rgba(255, 153, 51, 0.1); --brand-green-light: rgba(19, 136, 8, 0.15);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.8); --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.6); --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.7);
       }
+      @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
       
-      /* Low-end device optimization & Accessibility */
-      @media (prefers-reduced-motion: reduce) {
-        *, ::before, ::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-          scroll-behavior: auto !important;
-        }
-      }
-
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-secondary); line-height: 1.6; padding-top: 80px; transition: background-color 0.3s ease, color 0.3s ease; }
+      html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; overflow-x: hidden; text-align: left; }
+      #root { display: flex; flex-direction: column; min-height: 100vh; }
+      
+      body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-secondary); line-height: 1.6; transition: background-color 0.3s ease, color 0.3s ease; }
       h1, h2, h3, h4 { font-family: 'Poppins', sans-serif; color: var(--text-primary); line-height: 1.2; text-wrap: balance; }
       button { border: none; background: none; font-family: inherit; cursor: pointer; }
-      
-      /* Keyboard Accessibility */
       *:focus-visible { outline: 3px solid var(--brand-saffron); outline-offset: 2px; border-radius: 4px; }
       
-      /* Layouts - Mobile First */
+      .main-wrapper { flex: 1; padding-top: 80px; display: flex; flex-direction: column; }
       .container { width: 100%; max-width: 1536px; margin: 0 auto; padding: 1.5rem 1rem; }
       @media (min-width: 768px) { .container { padding: 2rem 1.5rem; } }
       
+      /* Gateway */
+      .gateway-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
+      .gateway-content { text-align: center; max-width: 600px; padding: 2rem; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--border-light); margin-bottom: 2rem; }
+      .gateway-logo { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 1.5rem; box-shadow: var(--shadow-md); border: 4px solid var(--bg-base); }
+      .gateway-content h1 { font-size: 2rem; margin-bottom: 1rem; }
+      .gateway-content p { color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; }
+      .gateway-buttons { display: flex; flex-direction: column; gap: 1rem; }
+      @media (min-width: 600px) { .gateway-buttons { flex-direction: row; } }
+      .gateway-btn { flex: 1; padding: 1.5rem; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: var(--transition); text-decoration: none; border: 2px solid transparent; }
+      .gateway-btn i { font-size: 2rem; margin-bottom: 0.5rem; }
+      .gateway-btn span { font-weight: 700; font-size: 1.1rem; font-family: 'Poppins', sans-serif; }
+      .gateway-btn small { font-size: 0.85rem; opacity: 0.8; }
+      .gateway-btn.primary { background: var(--brand-saffron); color: #fff; }
+      .gateway-btn.primary:hover { background: #E68A2E; transform: translateY(-4px); box-shadow: var(--shadow-md); }
+      .gateway-btn.secondary { background: var(--bg-base); color: var(--text-primary); border-color: var(--border-strong); }
+      .gateway-btn.secondary:hover { background: var(--bg-surface-hover); border-color: var(--brand-blue); transform: translateY(-4px); box-shadow: var(--shadow-md); color: var(--brand-blue); }
+      
+      /* Chat Interface */
+      .chat-box-container { display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-light); }
+      .chat-box-container.fullscreen { flex: 1; max-width: 1000px; margin: 0 auto; width: 100%; border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); margin-top: 1rem; margin-bottom: 2rem; height: calc(100vh - 200px); }
+      .chat-box-container.drawer { width: 100%; height: 100%; border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); }
+      
+      .chat-messages { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; }
+      .chat-empty-state { text-align: center; margin: auto 0; color: var(--text-muted); }
+      .chat-empty-state i { font-size: 3rem; margin-bottom: 1rem; color: var(--border-strong); }
+      .chat-empty-state h3 { font-size: 1.2rem; font-weight: 500; }
+      
+      .chat-bubble-wrapper { display: flex; gap: 12px; max-width: 85%; }
+      .chat-bubble-wrapper.ai { align-self: flex-start; }
+      .chat-bubble-wrapper.user { align-self: flex-end; flex-direction: row-reverse; }
+      .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-saffron-light); color: var(--brand-saffron); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .chat-avatar.user { background: var(--brand-blue); color: #fff; }
+      .chat-bubble { padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.95rem; line-height: 1.5; color: var(--text-primary); }
+      .chat-bubble-wrapper.ai .chat-bubble { background: var(--bg-base); border: 1px solid var(--border-light); border-top-left-radius: 4px; }
+      .chat-bubble-wrapper.user .chat-bubble { background: var(--brand-blue); color: #fff; border-top-right-radius: 4px; }
+      .chat-bubble a { color: inherit; text-decoration: underline; font-weight: 600; }
+      
+      .chat-input-area { display: flex; gap: 10px; padding: 1rem; border-top: 1px solid var(--border-light); background: var(--bg-surface); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+      .chat-input-area textarea { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--border-strong); background: var(--bg-base); color: var(--text-primary); font-family: 'Inter', sans-serif; resize: none; outline: none; transition: var(--transition); }
+      .chat-input-area textarea:focus { border-color: var(--brand-saffron); box-shadow: var(--shadow-glow); }
+      .chat-input-area button { width: 48px; height: 48px; border-radius: 50%; background: var(--brand-saffron); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: var(--transition); }
+      .chat-input-area button:hover:not(:disabled) { background: #E68A2E; transform: scale(1.05); }
+      .chat-input-area button:disabled { background: var(--border-strong); cursor: not-allowed; }
+      
+      /* Floating Chat Drawer */
+      .fab-btn { position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: var(--brand-saffron); color: #fff; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-xl); z-index: 1000; transition: var(--transition); }
+      .fab-btn:hover { transform: scale(1.1); }
+      .fab-btn.active { background: var(--text-primary); }
+      
+      .chat-drawer-overlay { position: fixed; bottom: 150px; right: 20px; width: 350px; height: 500px; max-height: calc(100vh - 180px); max-width: calc(100vw - 40px); z-index: 1000; animation: slideUp 0.3s ease forwards; }
+      @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Mandatory Footer */
+      .mandatory-legal-footer { background: var(--bg-surface-hover); border-top: 1px solid var(--border-light); padding: 1.5rem 1rem; text-align: center; margin-top: auto; }
+      .mandatory-legal-footer p { font-size: 0.85rem; color: var(--text-muted); max-width: 1000px; margin: 0 auto; line-height: 1.6; }
+      .mandatory-legal-footer strong { color: var(--text-primary); }
+
       /* Navbar */
       .navbar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(var(--bg-surface), 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-light); z-index: 1000; transition: var(--transition); }
       .nav-container { max-width: 1536px; margin: 0 auto; padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; }
       @media (min-width: 768px) { .nav-container { padding: 0.8rem 1.5rem; } }
-      
       .logo { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: clamp(1rem, 4vw, 1.5rem); color: var(--text-primary); text-decoration: none;}
       .brand-logo-small { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-sm); border: 2px solid var(--border-light); transition: transform 0.3s ease; }
       @media (min-width: 768px) { .logo { gap: 12px; } .brand-logo-small { width: 44px; height: 44px; } }
       .logo:hover .brand-logo-small { transform: rotate(5deg) scale(1.05); }
-      
       .nav-actions { display: flex; align-items: center; gap: 8px; }
       @media (min-width: 768px) { .nav-actions { gap: 12px; } }
-      
-      /* Touch Target Optimization (min 44x44) */
+      .nav-text-btn { font-size: 0.9rem; font-weight: 600; color: var(--brand-blue); background: var(--brand-green-light); padding: 8px 16px; border-radius: 20px; display: none; align-items: center; gap: 6px; transition: var(--transition); }
+      @media (min-width: 768px) { .nav-text-btn { display: flex; } }
+      .nav-text-btn:hover { background: var(--brand-saffron-light); color: var(--brand-saffron); }
       .icon-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); background: var(--bg-surface); border: 1px solid var(--border-light); color: var(--text-secondary); transition: var(--transition); flex-shrink: 0; }
       .icon-btn:hover { background: var(--bg-surface-hover); color: var(--brand-saffron); }
-      
       .lang-switcher { display: flex; align-items: center; gap: 6px; background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-light); min-height: 44px; }
       @media (min-width: 768px) { .lang-switcher { gap: 8px; padding: 8px 16px 8px 12px; } }
       .lang-switcher select { background: transparent; border: none; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; color: var(--text-primary); cursor: pointer; outline: none; width: 60px; }
       @media (min-width: 768px) { .lang-switcher select { font-size: 0.9rem; width: auto; } }
       
-      /* Hero */
-      .hero { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3rem 1rem 4rem; background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%); border-radius: var(--radius-lg); margin-bottom: 2rem; border: 1px solid var(--border-light); box-shadow: var(--shadow-md); overflow: hidden; }
+      .hero { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3rem 1rem 4rem; background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%); border-radius: var(--radius-lg); margin-bottom: 2rem; border: 1px solid var(--border-light); box-shadow: var(--shadow-md); overflow: hidden; width: 100%; }
       @media (min-width: 768px) { .hero { padding: 4rem 1.5rem 5rem; margin-bottom: 3rem; } }
       .hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
       .hero-logo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-surface); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-light); margin-bottom: 1.5rem; background-color: #000; animation: floatLogo 4s ease-in-out infinite; will-change: transform, box-shadow; }
@@ -3112,96 +3536,76 @@ export default function App() {
       .hero h1 { font-size: clamp(1.8rem, 6vw, 4rem); margin-bottom: 1rem; }
       .hero p { font-size: clamp(0.95rem, 2vw, 1.25rem); color: var(--text-secondary); max-width: 800px; }
       
-      /* Sections */
-      .section-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem 1rem; box-shadow: var(--shadow-xl); margin-bottom: 2rem; border: 1px solid var(--border-light); }
+      .section-card { background: var(--bg-surface); border-radius: var(--radius-lg); padding: 1.5rem 1rem; box-shadow: var(--shadow-xl); margin-bottom: 2rem; border: 1px solid var(--border-light); width: 100%; }
       @media (min-width: 768px) { .section-card { padding: clamp(2rem, 4vw, 3rem); margin-bottom: 3rem; } }
-      
       .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light); }
       @media (min-width: 768px) { .section-header { gap: 16px; margin-bottom: 2rem; padding-bottom: 1.5rem; } }
-      
       .section-header-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--brand-saffron-light); color: var(--brand-saffron); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
       @media (min-width: 768px) { .section-header-icon { width: 48px; height: 48px; font-size: 1.5rem; } }
       
-      /* --- EXACT UI MATCH FOR SERVICES GUIDE (IMAGE 2ff856) --- */
-      .services-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
-      @media (min-width: 900px) { .services-grid { grid-template-columns: 320px 1fr; gap: 2.5rem; align-items: start; } }
-      
-      .service-controls { display: flex; flex-direction: column; gap: 1rem; }
+      .services-grid { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
+      @media (min-width: 900px) { .services-grid { display: grid; grid-template-columns: 320px 1fr; gap: 2.5rem; align-items: start; } }
+      .service-controls { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
       .control-label-sm { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-      
       .service-selector-group { display: flex; flex-direction: column; }
-      .service-select-box { border: 2px solid var(--brand-saffron); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 2px 4px; box-shadow: var(--shadow-sm); z-index: 2; position: relative; }
-      .styled-select-bare { width: 100%; padding: 12px 14px; border: none; font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--text-primary); background: transparent; cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; }
-      
+      .service-select-box { border: 2px solid var(--brand-saffron); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 2px 4px; box-shadow: var(--shadow-sm); z-index: 2; position: relative; width: 100%; }
+      .styled-select-bare { width: 100%; padding: 12px 14px; min-height: 44px; border: none; font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--text-primary); background: transparent; cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; }
       .service-meta-row { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg-base); border: 1px solid var(--border-light); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); margin-top: -4px; padding-top: 4px; }
       .meta-cell { padding: 12px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
       .meta-cell:first-child { border-right: 1px solid var(--border-light); }
-      
       .service-docs-card { background: var(--bg-base); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px; margin-top: 0.5rem; }
       .doc-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-top: 4px; }
       
-      /* Image Match Timeline */
-      .timeline-container { background: var(--bg-base); border-radius: var(--radius-md); padding: 2rem; border: 1px solid var(--border-light); }
-      .custom-timeline { position: relative; margin: 0; padding: 0; list-style: none; }
+      .timeline-container { background: var(--bg-base); border-radius: var(--radius-md); padding: 1.5rem 1rem; border: 1px solid var(--border-light); width: 100%; }
+      @media (min-width: 768px) { .timeline-container { padding: 2rem; } }
+      .custom-timeline { position: relative; margin: 0; padding: 0; list-style: none; padding-left: 20px; }
       .custom-timeline::before { content: ''; position: absolute; left: 7px; top: 12px; bottom: 16px; width: 1.5px; background: var(--border-light); z-index: 1; }
-      .custom-timeline-item { position: relative; padding-left: 32px; margin-bottom: 1.75rem; font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; animation: slideInRight 0.4s ease forwards; opacity: 0; }
+      .custom-timeline-item { position: relative; padding-left: 16px; margin-bottom: 1.75rem; font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; animation: slideInRight 0.4s ease forwards; opacity: 0; }
       .custom-timeline-item:last-child { margin-bottom: 0; }
-      .custom-timeline-item::before { content: ''; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; background: var(--bg-base); border: 2.5px solid var(--brand-saffron); border-radius: 50%; z-index: 2; box-shadow: 0 0 0 4px var(--bg-base); }
+      .custom-timeline-item::before { content: ''; position: absolute; left: -16px; top: 4px; width: 16px; height: 16px; background: var(--bg-base); border: 2.5px solid var(--brand-saffron); border-radius: 50%; z-index: 2; box-shadow: 0 0 0 4px var(--bg-base); }
       .step-label { font-weight: 700; color: var(--text-primary); margin-right: 4px; }
       @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
       
-      /* Benefits Grid - Mobile First */
-      .benefits-layout { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-      @media (min-width: 1024px) { .benefits-layout { grid-template-columns: 280px 1fr; gap: 2rem; } }
-      
-      .search-wrapper { position: relative; margin-bottom: 1rem; }
+      .benefits-layout { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+      @media (min-width: 1024px) { .benefits-layout { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; } }
+      .search-wrapper { position: relative; margin-bottom: 1rem; width: 100%; }
       @media (min-width: 1024px) { .search-wrapper { margin-bottom: 1.5rem; } }
       .search-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
       .search-input { width: 100%; padding: 14px 16px 14px 44px; min-height: 48px; border: 1px solid var(--border-light); border-radius: var(--radius-full); background: var(--bg-base); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.95rem; transition: var(--transition); }
       .search-input:focus { outline: none; border-color: var(--brand-saffron); box-shadow: var(--shadow-glow); background: var(--bg-surface); }
-      
-      .category-sidebar { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 12px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .category-sidebar { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 12px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; width: 100%; }
       .category-sidebar::-webkit-scrollbar { display: none; }
       .category-sidebar > * { scroll-snap-align: start; flex-shrink: 0; }
       @media (min-width: 1024px) { .category-sidebar { flex-direction: column; overflow-x: visible; padding-bottom: 0; scroll-snap-type: none; } .category-sidebar > * { flex-shrink: 1; } }
-      
       .cat-btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 48px; border-radius: var(--radius-md); background: transparent; border: 1px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; text-align: left; transition: var(--transition); white-space: nowrap; }
       .cat-btn:hover { background: var(--bg-base); color: var(--text-primary); }
       .cat-btn.active { background: var(--brand-saffron-light); color: var(--brand-saffron); border-color: rgba(255,153,51,0.2); font-weight: 600; }
       .cat-btn i { width: 20px; text-align: center; }
       
-      .schemes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; align-items: start; }
+      .schemes-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; align-items: start; width: 100%; }
+      @media (min-width: 640px) { .schemes-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } }
       @media (min-width: 768px) { .schemes-grid { gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
-      
-      .scheme-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; height: 100%; transition: var(--transition); position: relative; overflow: hidden; opacity: 0; animation: fadeInUp 0.5s ease forwards; }
+      .scheme-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; height: 100%; transition: var(--transition); position: relative; overflow: hidden; opacity: 0; animation: fadeInUp 0.5s ease forwards; width: 100%; }
       @media (min-width: 768px) { .scheme-card { padding: 1.5rem; } }
       .scheme-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--brand-saffron), var(--brand-green)); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; }
       .scheme-card:hover { box-shadow: var(--shadow-xl); transform: translateY(-4px); border-color: var(--border-strong); }
       .scheme-card:hover::after { transform: scaleX(1); }
-      
       .scheme-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 10px;}
       .scheme-header h3 { font-size: 1.1rem; color: var(--text-primary); }
       @media (min-width: 768px) { .scheme-header h3 { font-size: 1.15rem; } }
-      
       .share-btn { width: 44px; height: 44px; border-radius: var(--radius-full); background: var(--bg-base); color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: var(--transition); border: 1px solid var(--border-light); flex-shrink: 0; }
       .share-btn:hover { background: var(--bg-surface-hover); color: var(--brand-saffron); border-color: var(--border-strong); }
-      
       .scheme-desc { font-size: 0.9rem; color: var(--text-secondary); flex-grow: 1; margin-bottom: 1.5rem; }
-      
       .scheme-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 1.2rem; border-top: 1px solid var(--border-light); gap: 8px; flex-wrap: wrap; }
       .benefit-tag { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; color: var(--brand-green); background: var(--brand-green-light); padding: 6px 10px; border-radius: var(--radius-sm); }
       .official-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-blue); display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: var(--radius-full); transition: var(--transition); text-decoration: none; min-height: 44px; }
       .official-link:hover { background: var(--bg-base); text-decoration: underline; }
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); grid-column: 1 / -1; }
-      
-      /* UX Skeleton Loaders */
       .skeleton-loader { background: linear-gradient(90deg, var(--border-light) 25%, var(--border-strong) 50%, var(--border-light) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite linear; }
       @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
       .toast { background: var(--text-primary); color: var(--bg-surface); padding: 12px 24px; border-radius: var(--radius-full); font-size: 0.9rem; font-weight: 500; box-shadow: var(--shadow-xl); display: flex; align-items: center; gap: 10px; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; z-index: 9999; }
       @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
-      
       .loading-fallback { text-align: center; padding: 3rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-light); margin-bottom: 3rem; box-shadow: var(--shadow-sm); }
     `}</style>
   );
@@ -3222,35 +3626,70 @@ export default function App() {
 
   return (
     <AppContext.Provider
-      value={{ lang, setLang: setLangState, theme, toggleTheme, showToast, t }}
+      value={{
+        appMode,
+        setAppMode: setAppModeState,
+        lang,
+        setLang: setLangState,
+        theme,
+        toggleTheme,
+        showToast,
+        t,
+        chatHistory,
+        addMessage,
+        isChatOpen,
+        setChatOpen,
+      }}
     >
       <ErrorBoundary>
         <GlobalStyles />
-        <Navbar />
-        <main className="container">
-          <Hero />
-          {/* Suspense Boundaries handle the lazy-loaded chunks */}
-          <Suspense
-            fallback={
-              <div className="loading-fallback">
-                <i className="fa-solid fa-spinner fa-spin"></i> Loading
-                Interactive Guide...
-              </div>
-            }
-          >
-            <AsyncServicesSection />
-          </Suspense>
-          <Suspense
-            fallback={
-              <div className="loading-fallback">
-                <i className="fa-solid fa-spinner fa-spin"></i> Loading Benefits
-                Database...
-              </div>
-            }
-          >
-            <AsyncBenefitsSection />
-          </Suspense>
-        </main>
+
+        {appMode === "gateway" && <Gateway />}
+
+        {appMode === "chat" && (
+          <div className="main-wrapper">
+            <Navbar />
+            <main
+              className="container"
+              style={{ display: "flex", flexDirection: "column", flex: 1 }}
+            >
+              <ChatBox isFullScreen={true} />
+            </main>
+            <LegalFooter />
+          </div>
+        )}
+
+        {appMode === "home" && (
+          <div className="main-wrapper">
+            <Navbar />
+            <main className="container">
+              <Hero />
+              <Suspense
+                fallback={
+                  <div className="loading-fallback">
+                    <i className="fa-solid fa-spinner fa-spin"></i> Loading
+                    Interactive Guide...
+                  </div>
+                }
+              >
+                <AsyncServicesSection />
+              </Suspense>
+              <Suspense
+                fallback={
+                  <div className="loading-fallback">
+                    <i className="fa-solid fa-spinner fa-spin"></i> Loading
+                    Benefits Database...
+                  </div>
+                }
+              >
+                <AsyncBenefitsSection />
+              </Suspense>
+            </main>
+            <FloatingChat />
+            <LegalFooter />
+          </div>
+        )}
+
         {toast && (
           <div className="toast" key={toast.id}>
             <i
