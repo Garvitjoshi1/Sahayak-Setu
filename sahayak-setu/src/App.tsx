@@ -113,7 +113,8 @@ export function useDynamicSEO(
 // ==========================================
 type Language = "en" | "hi" | "bn" | "te" | "mr" | "ta";
 type Theme = "light" | "dark";
-type AppMode = "gateway" | "chat" | "home";
+// Added "wizard" to AppMode for the Smart Eligibility UI
+type AppMode = "gateway" | "chat" | "home" | "wizard";
 
 interface LocalizedString {
   en: string;
@@ -138,11 +139,23 @@ interface GovernmentService {
   url?: string;
 }
 
+// New UserProfile interface for the ML Wizard
+interface UserProfile {
+  fullName: string;
+  dob: string;
+  gender: string;
+  category: string;
+  annualIncome: string;
+  aadhaarLast4: string;
+}
+
 interface Scheme {
   title: LocalizedString;
   desc: LocalizedString;
   benefit: string;
   url: string;
+  // ML Evaluation function for recommendations
+  evaluate?: (profile: UserProfile) => { score: number; reason: string };
 }
 
 interface Category {
@@ -158,6 +171,13 @@ interface ChatMessage {
   text: string;
   isHtml?: boolean;
 }
+
+// Utility to calculate age safely
+const calculateAge = (dob: string): number => {
+  if (!dob) return 0;
+  const diff = Date.now() - new Date(dob).getTime();
+  return Math.abs(new Date(diff).getUTCFullYear() - 1970);
+};
 
 // ==========================================
 // 3. MOCK DATABASE (MASSIVELY EXPANDED)
@@ -1527,6 +1547,24 @@ const MOCK_DB = {
           },
           benefit: "₹6,000 / Year",
           url: "https://pmkisan.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const inc = parseInt(p.annualIncome.replace(/,/g, "")) || 0;
+            if (inc < 500000)
+              return {
+                score: 95,
+                reason:
+                  "Income level indicates potential small/marginal farmer status.",
+              };
+            if (inc < 800000)
+              return {
+                score: 50,
+                reason: "Eligible if you own cultivable land.",
+              };
+            return {
+              score: 10,
+              reason: "Income exceeds standard scheme limits.",
+            };
+          },
         },
         {
           title: {
@@ -1547,6 +1585,12 @@ const MOCK_DB = {
           },
           benefit: "Crop Insurance",
           url: "https://pmfby.gov.in/",
+          evaluate: (p: UserProfile) => {
+            return {
+              score: 80,
+              reason: "Universal scheme for all farmers regardless of income.",
+            };
+          },
         },
         {
           title: {
@@ -1567,6 +1611,10 @@ const MOCK_DB = {
           },
           benefit: "Free Soil Testing",
           url: "https://soilhealth.dac.gov.in/",
+          evaluate: () => ({
+            score: 90,
+            reason: "Applicable for all landholding farmers.",
+          }),
         },
         {
           title: {
@@ -1587,6 +1635,19 @@ const MOCK_DB = {
           },
           benefit: "Low-Interest Loan",
           url: "https://www.myscheme.gov.in/schemes/kcc",
+          evaluate: (p: UserProfile) => {
+            const inc = parseInt(p.annualIncome.replace(/,/g, "")) || 0;
+            return inc < 1000000
+              ? {
+                  score: 85,
+                  reason:
+                    "Excellent credit support for low/mid income agriculture.",
+                }
+              : {
+                  score: 40,
+                  reason: "Loans available but subject to bank scrutiny.",
+                };
+          },
         },
       ],
     },
@@ -1621,6 +1682,18 @@ const MOCK_DB = {
           },
           benefit: "Financial Aid",
           url: "https://scholarships.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const age = calculateAge(p.dob);
+            if (age >= 10 && age <= 25)
+              return {
+                score: 98,
+                reason: "Prime age range for national scholarships.",
+              };
+            return {
+              score: 10,
+              reason: "Usually applicable for active students under 25.",
+            };
+          },
         },
         {
           title: {
@@ -1641,6 +1714,10 @@ const MOCK_DB = {
           },
           benefit: "Free E-Learning",
           url: "https://pmevidya.education.gov.in/",
+          evaluate: () => ({
+            score: 100,
+            reason: "Open digital access for all citizens.",
+          }),
         },
         {
           title: {
@@ -1654,13 +1731,22 @@ const MOCK_DB = {
           desc: {
             en: "Empowers the youth with skill sets making them more employable.",
             hi: "युवाओं के लिए कौशल प्रशिक्षण।",
-            bn: "দক্ষতা প্রশিক্ষণ।",
+            bn: "দক্ষতা प्रशिक्षण।",
             te: "నైపుణ్య శిక్షణ.",
             mr: "कौशल्य प्रशिक्षण.",
             ta: "திறன் பயிற்சி.",
           },
           benefit: "Skill Training",
           url: "https://www.skillindiadigital.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const age = calculateAge(p.dob);
+            if (age >= 16 && age <= 35)
+              return {
+                score: 95,
+                reason: "Prime demographic for skill development programs.",
+              };
+            return { score: 40, reason: "Open to all, but targeted at youth." };
+          },
         },
       ],
     },
@@ -1695,6 +1781,23 @@ const MOCK_DB = {
           },
           benefit: "₹5 Lakh Cover",
           url: "https://pmjay.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const inc = parseInt(p.annualIncome.replace(/,/g, "")) || 0;
+            if (p.category === "SC" || p.category === "ST")
+              return {
+                score: 95,
+                reason: "Automatically eligible based on declared category.",
+              };
+            if (inc <= 500000)
+              return {
+                score: 85,
+                reason: "Income qualifies for lower-income bracket criteria.",
+              };
+            return {
+              score: 10,
+              reason: "Standard premium applies based on higher income.",
+            };
+          },
         },
         {
           title: {
@@ -1715,6 +1818,10 @@ const MOCK_DB = {
           },
           benefit: "Subsidized Care",
           url: "https://nhm.gov.in/",
+          evaluate: () => ({
+            score: 90,
+            reason: "Universal accessibility for rural/urban areas.",
+          }),
         },
         {
           title: {
@@ -1735,6 +1842,10 @@ const MOCK_DB = {
           },
           benefit: "Free Consultation",
           url: "https://esanjeevaniopd.in/",
+          evaluate: () => ({
+            score: 100,
+            reason: "Open digital platform for all citizens.",
+          }),
         },
       ],
     },
@@ -1769,6 +1880,19 @@ const MOCK_DB = {
           },
           benefit: "Guaranteed Work",
           url: "https://nrega.nic.in/",
+          evaluate: (p: UserProfile) => {
+            const inc = parseInt(p.annualIncome.replace(/,/g, "")) || 0;
+            if (inc < 300000)
+              return {
+                score: 98,
+                reason:
+                  "High probability of eligibility in rural demographics.",
+              };
+            return {
+              score: 30,
+              reason: "Primarily for rural wage employment.",
+            };
+          },
         },
         {
           title: {
@@ -1789,6 +1913,15 @@ const MOCK_DB = {
           },
           benefit: "Job Portal",
           url: "https://www.ncs.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const age = calculateAge(p.dob);
+            if (age >= 18 && age <= 50)
+              return {
+                score: 100,
+                reason: "Working age demographic matches perfectly.",
+              };
+            return { score: 50, reason: "Open to all job seekers." };
+          },
         },
       ],
     },
@@ -1823,6 +1956,17 @@ const MOCK_DB = {
           },
           benefit: "Social Security",
           url: "https://wcd.nic.in/bbbp-schemes",
+          evaluate: (p: UserProfile) => {
+            return p.gender === "Female" || p.gender === "Other"
+              ? {
+                  score: 95,
+                  reason: "Directly applicable based on gender demographic.",
+                }
+              : {
+                  score: 40,
+                  reason: "Applicable if you have a girl child in the family.",
+                };
+          },
         },
         {
           title: {
@@ -1843,6 +1987,14 @@ const MOCK_DB = {
           },
           benefit: "₹5,000 Cash",
           url: "https://wcd.nic.in/schemes/pradhan-mantri-matru-vandana-yojana",
+          evaluate: (p: UserProfile) => {
+            if (p.gender === "Female")
+              return { score: 90, reason: "Applicable for expecting mothers." };
+            return {
+              score: 0,
+              reason: "Maternity scheme specific to females.",
+            };
+          },
         },
         {
           title: {
@@ -1863,6 +2015,10 @@ const MOCK_DB = {
           },
           benefit: "High Interest",
           url: "https://www.indiapost.gov.in/Financial/Pages/Content/Sukanya-Samriddhi-Account.aspx",
+          evaluate: () => ({
+            score: 85,
+            reason: "Applicable if you are a parent of a girl child under 10.",
+          }),
         },
       ],
     },
@@ -1897,6 +2053,25 @@ const MOCK_DB = {
           },
           benefit: "Housing Subsidy",
           url: "https://pmaymis.gov.in/",
+          evaluate: (p: UserProfile) => {
+            const inc = parseInt(p.annualIncome.replace(/,/g, "")) || 0;
+            if (inc <= 300000)
+              return {
+                score: 98,
+                reason:
+                  "Income falls strictly in EWS (Economically Weaker Section) category.",
+              };
+            if (inc <= 600000)
+              return {
+                score: 75,
+                reason:
+                  "Income falls in LIG category. Partial subsidy applicable.",
+              };
+            return {
+              score: 10,
+              reason: "Income exceeds standard scheme limits.",
+            };
+          },
         },
         {
           title: {
@@ -1917,6 +2092,11 @@ const MOCK_DB = {
           },
           benefit: "Toilet Subsidy",
           url: "https://swachhbharatmission.gov.in/",
+          evaluate: () => ({
+            score: 80,
+            reason:
+              "Available to eligible households without sanitation facilities.",
+          }),
         },
       ],
     },
@@ -1951,6 +2131,11 @@ const MOCK_DB = {
           },
           benefit: "Zero Balance A/C",
           url: "https://pmjdy.gov.in/",
+          evaluate: () => ({
+            score: 100,
+            reason:
+              "Universal scheme open to all citizens without a bank account.",
+          }),
         },
         {
           title: {
@@ -1971,6 +2156,18 @@ const MOCK_DB = {
           },
           benefit: "₹1k-5k / Month",
           url: "https://pfrda.org.in/",
+          evaluate: (p: UserProfile) => {
+            const age = calculateAge(p.dob);
+            if (age >= 18 && age <= 40)
+              return {
+                score: 95,
+                reason: "Perfect age bracket to start investing in APY.",
+              };
+            return {
+              score: 0,
+              reason: "Applicant must be between 18 and 40 years of age.",
+            };
+          },
         },
         {
           title: {
@@ -1991,60 +2188,11 @@ const MOCK_DB = {
           },
           benefit: "Up to ₹10L Loan",
           url: "https://www.mudra.org.in/",
-        },
-      ],
-    },
-    {
-      id: "business",
-      icon: "fa-industry",
-      name: {
-        en: "Business, MSME & Startups",
-        hi: "व्यापार, MSME और स्टार्टअप",
-        bn: "এমএসএমই ও স্টার্টআপ",
-        te: "MSME & స్టార్టప్‌లు",
-        mr: "MSME आणि स्टार्टअप्स",
-        ta: "MSME & ஸ்டார்ட்அப்கள்",
-      },
-      schemes: [
-        {
-          title: {
-            en: "Udyam Registration",
-            hi: "उद्यम पंजीकरण",
-            bn: "উদ্যম নিবন্ধন",
-            te: "ఉద్యమ్ నమోదు",
-            mr: "उद्यम नोंदणी",
-            ta: "உத்யோக் பதிவு",
-          },
-          desc: {
-            en: "Zero-cost online registration process for MSMEs.",
-            hi: "MSME के लिए मुफ्त पंजीकरण।",
-            bn: "বিনামূল্যে নিবন্ধন।",
-            te: "ఉచిత నమోదు.",
-            mr: "मोफत नोंदणी.",
-            ta: "இலவச பதிவு.",
-          },
-          benefit: "Official ID",
-          url: "https://udyamregistration.gov.in/",
-        },
-        {
-          title: {
-            en: "Startup India Seed Fund",
-            hi: "स्टार्टअप इंडिया सीड फंड",
-            bn: "স্টার্টআপ সিড ফান্ড",
-            te: "స్టార్టప్ సీడ్ ఫండ్",
-            mr: "स्टार्टअप सीड फंड",
-            ta: "ஸ்டார்ட்அப் விதை நிதி",
-          },
-          desc: {
-            en: "Provides financial assistance to startups for proof of concept.",
-            hi: "स्टार्टअप्स के लिए वित्तीय सहायता।",
-            bn: "স্টার্টআপদের জন্য আর্থিক সহায়তা।",
-            te: "స్టార్టప్‌లకు ఆర్థిక సహాయం.",
-            mr: "स्टार्टअप्ससाठी आर्थिक मदत.",
-            ta: "ஸ்டார்ட்அப்களுக்கான நிதி உதவி.",
-          },
-          benefit: "Seed Capital",
-          url: "https://seedfund.startupindia.gov.in/",
+          evaluate: () => ({
+            score: 85,
+            reason:
+              "Applicable if looking to start or expand a micro-enterprise.",
+          }),
         },
       ],
     },
@@ -2079,6 +2227,19 @@ const MOCK_DB = {
           },
           benefit: "Monthly Pension",
           url: "https://nsap.nic.in/",
+          evaluate: (p: UserProfile) => {
+            const age = calculateAge(p.dob);
+            if (age >= 60)
+              return {
+                score: 100,
+                reason:
+                  "Applicant meets the minimum age requirement of 60 years.",
+              };
+            return {
+              score: 20,
+              reason: `Applicant is ${age} years old. Minimum age is usually 60 unless disabled/widowed.`,
+            };
+          },
         },
         {
           title: {
@@ -2099,168 +2260,17 @@ const MOCK_DB = {
           },
           benefit: "Financial Grants",
           url: "https://socialjustice.gov.in/",
-        },
-      ],
-    },
-    {
-      id: "digital",
-      icon: "fa-fingerprint",
-      name: {
-        en: "Digital Governance & Identity",
-        hi: "डिजिटल गवर्नेंस और पहचान",
-        bn: "ডিজিটাল পরিচয়",
-        te: "డిజిటల్ గుర్తింపు",
-        mr: "डिजिटल ओळख",
-        ta: "டிஜிட்டல் அடையாளம்",
-      },
-      schemes: [
-        {
-          title: {
-            en: "Aadhaar Services",
-            hi: "आधार सेवाएं",
-            bn: "আধার পরিষেবা",
-            te: "ఆధార్ సేవలు",
-            mr: "आधार सेवा",
-            ta: "ஆதார் சேவைகள்",
+          evaluate: (p: UserProfile) => {
+            if (p.category === "SC" || p.category === "ST")
+              return {
+                score: 100,
+                reason: "Directly matches declared social category.",
+              };
+            return {
+              score: 0,
+              reason: "Scheme restricted to SC/ST categories.",
+            };
           },
-          desc: {
-            en: "Unique identification number providing access to DBT, subsidies.",
-            hi: "सभी सब्सिडी के लिए अनिवार्य आईडी।",
-            bn: "ভর্তুকির জন্য আইডি।",
-            te: "సబ్సిడీల కోసం ID.",
-            mr: "सबसिडीसाठी आयडी.",
-            ta: "மானியங்களுக்கான ஐடி.",
-          },
-          benefit: "Universal ID",
-          url: "https://uidai.gov.in/",
-        },
-        {
-          title: {
-            en: "DigiLocker",
-            hi: "डिजिलॉकर",
-            bn: "ডিজিলকার",
-            te: "డిజిలాకర్",
-            mr: "डिजिलॉकर",
-            ta: "டிஜிலாக்கர்",
-          },
-          desc: {
-            en: "Secure cloud-based platform for storage, sharing, and verification of documents.",
-            hi: "दस्तावेजों को सुरक्षित रखने का प्लेटफॉर्म।",
-            bn: "নথি সংরক্ষণের প্ল্যাটফর্ম।",
-            te: "పత్రాలను నిల్వ చేయడానికి వేదిక.",
-            mr: "कागदपत्रे साठवण्यासाठी व्यासपीठ.",
-            ta: "ஆவணங்களை சேமிப்பதற்கான தளம்.",
-          },
-          benefit: "Cloud Document",
-          url: "https://www.digilocker.gov.in/",
-        },
-      ],
-    },
-    {
-      id: "infrastructure",
-      icon: "fa-solar-panel",
-      name: {
-        en: "Infrastructure & Energy",
-        hi: "बुनियादी ढांचा और ऊर्जा",
-        bn: "শক্তি ও পরিকাঠামো",
-        te: "శక్తి & మౌలిక సదుపాయాలు",
-        mr: "ऊर्जा आणि पायाभूत सुविधा",
-        ta: "சக்தி மற்றும் உள்கட்டமைப்பு",
-      },
-      schemes: [
-        {
-          title: {
-            en: "PM KUSUM",
-            hi: "पीएम कुसुम",
-            bn: "পিএম কুসুম",
-            te: "పిఎం కుసుమ్",
-            mr: "पीएम कुसुम",
-            ta: "பிஎம் குசும்",
-          },
-          desc: {
-            en: "Subsidies for farmers to install solar pumps.",
-            hi: "सौर पंप के लिए सब्सिडी।",
-            bn: "সৌর পাম্পের জন্য ভর্তুকি।",
-            te: "సౌర పంపులకు సబ్సిడీ.",
-            mr: "सौर पंपांसाठी सबसिडी.",
-            ta: "சூரிய பம்புகளுக்கு மானியம்.",
-          },
-          benefit: "Solar Subsidy",
-          url: "https://pmkusum.mnre.gov.in/",
-        },
-        {
-          title: {
-            en: "Saubhagya Yojana",
-            hi: "सौभाग्य योजना",
-            bn: "সৌভাগ্য যোজনা",
-            te: "సౌభాగ్య యోజన",
-            mr: "सौभाग्य योजना",
-            ta: "சௌபாக்யா யோஜனா",
-          },
-          desc: {
-            en: "Provides free electricity connections to all un-electrified households.",
-            hi: "मुफ्त बिजली कनेक्शन।",
-            bn: "বিনামূল্যে বিদ্যুৎ সংযোগ।",
-            te: "ఉచిత విద్యుత్ కనెక్షన్.",
-            mr: "मोफत वीज कनेक्शन.",
-            ta: "இலவச மின் இணைப்பு.",
-          },
-          benefit: "Free Electricity",
-          url: "https://saubhagya.gov.in/",
-        },
-      ],
-    },
-    {
-      id: "transport",
-      icon: "fa-car",
-      name: {
-        en: "Transport & Mobility",
-        hi: "परिवहन और गतिशीलता",
-        bn: "পরিবহন ও গতিশীলতা",
-        te: "రవాణా & చలనశీలత",
-        mr: "वाहतूक आणि गतिशीलता",
-        ta: "போக்குவரத்து மற்றும் இயக்கம்",
-      },
-      schemes: [
-        {
-          title: {
-            en: "FAME India Scheme",
-            hi: "फेम इंडिया योजना",
-            bn: "ফেম ইন্ডিয়া",
-            te: "ఫేమ్ ఇండియా",
-            mr: "फेम इंडिया",
-            ta: "ஃபேம் இந்தியா",
-          },
-          desc: {
-            en: "Promotes the adoption of electric vehicles (EVs) by providing subsidies.",
-            hi: "इलेक्ट्रिक वाहनों पर सब्सिडी।",
-            bn: "বৈদ্যুতিক যানবাহনে ভর্তুকি।",
-            te: "ఎలక్ట్రిక్ వాహనాలపై సబ్సిడీ.",
-            mr: "इलेक्ट्रिक वाहनांवर सबसिडी.",
-            ta: "மின்சார வாகனங்களுக்கு மானியம்.",
-          },
-          benefit: "EV Subsidy",
-          url: "https://heavyindustries.gov.in/",
-        },
-        {
-          title: {
-            en: "Digital Driving License",
-            hi: "परिवहन सेवाएं",
-            bn: "পরিবহন পরিষেবা",
-            te: "పరివాహన్ సేవలు",
-            mr: "परिवहन सेवा",
-            ta: "பரிவாஹன் சேவைகள்",
-          },
-          desc: {
-            en: "Apply for a Learner's License, Driving License, or RC online.",
-            hi: "ऑनलाइन ड्राइविंग लाइसेंस सेवाएं।",
-            bn: "অনলাইন লাইসেন্স পরিষেবা।",
-            te: "ఆన్‌లైన్ లైసెన్స్ సేవలు.",
-            mr: "ऑनलाइन परवाना सेवा.",
-            ta: "ஆன்லைன் உரிம சேவைகள்.",
-          },
-          benefit: "Online License",
-          url: "https://parivahan.gov.in/",
         },
       ],
     },
@@ -2287,9 +2297,48 @@ const MOCK_DB = {
       "toast-copy": "Official link copied to clipboard!",
       "t-chat-welcome":
         "Hello! I am your Sahayak Setu AI Assistant. You can ask me how to apply for a PAN card, Voter ID, Aadhaar, or inquire about schemes for farmers, students, etc.",
-      "t-chat-input-placeholder": "Ask about any government service...",
+      "t-chat-input-placeholder":
+        "Ask or speak about any government service...",
       "t-chat-disclaimer":
         "*AI Disclaimer: Please verify all steps on the official portal.",
+      // New T&C and Wizard strings
+      "tc-title": "Terms of Service & Cookie Policy",
+      "tc-desc": "Required for accessing AI features and document processing",
+      "tc-accept": "I Accept & Continue",
+      "tc-text1":
+        "1. Data Privacy: Any documents uploaded (Aadhaar, PAN) are processed entirely in memory via secure browser OCR. We use 256-bit encryption. No PII is saved to external databases.",
+      "tc-text2":
+        "2. Cookies: We use essential session cookies to maintain your login status and language preferences.",
+      "tc-text3":
+        "3. AI Processing: Queries to the Assistant may be processed via secure LLM APIs to provide context-aware help.",
+      "tc-text4":
+        "4. External Links: We provide direct links to official government portals but are not responsible for their independent privacy practices.",
+      "wiz-title": "Smart Eligibility Wizard",
+      "wiz-desc":
+        "AI-powered document scanning to auto-fill your profile and discover eligible government schemes instantly.",
+      "wiz-step1": "Document Scan",
+      "wiz-step2": "Verify Profile",
+      "wiz-step3": "View Schemes",
+      "wiz-upload": "Identity Verification",
+      "wiz-upload-desc":
+        "Upload an official document to auto-fill your profile securely.",
+      "wiz-click-upload": "Click to Upload Document",
+      "wiz-upload-help": "Supports Aadhaar, PAN, or Voter ID (JPG, PNG, PDF)",
+      "wiz-btn-next": "Proceed to Verify",
+      "wiz-verify-title": "Verify Your Details",
+      "wiz-verify-desc":
+        "Review extracted data and fill in the missing information.",
+      "wiz-fullname": "Full Name",
+      "wiz-dob": "Date of Birth",
+      "wiz-gender": "Gender",
+      "wiz-category": "Social Category",
+      "wiz-income": "Family Annual Income",
+      "wiz-btn-back": "Back",
+      "wiz-btn-evaluate": "Evaluate Schemes",
+      "wiz-success": "Eligibility Analysis Complete",
+      "wiz-match-score": "Match Score",
+      "wiz-reason": "Reason",
+      "btn-start-wizard": "Start AI Wizard",
     },
     hi: {
       "t-hero-title": "सूचना के साथ नागरिकों का सशक्तिकरण",
@@ -2312,9 +2361,45 @@ const MOCK_DB = {
       "toast-copy": "लिंक क्लिपबोर्ड पर कॉपी किया गया!",
       "t-chat-welcome":
         "नमस्ते! मैं आपका सहायक सेतु एआई सहायक हूँ। आप मुझसे पैन कार्ड, आधार, या योजनाओं के बारे में पूछ सकते हैं।",
-      "t-chat-input-placeholder": "किसी भी सरकारी सेवा के बारे में पूछें...",
+      "t-chat-input-placeholder":
+        "किसी भी सरकारी सेवा के बारे में पूछें या बोलें...",
       "t-chat-disclaimer":
         "*एआई अस्वीकरण: कृपया आधिकारिक पोर्टल पर जानकारी सत्यापित करें।",
+      "tc-title": "सेवा की शर्तें और कुकी नीति",
+      "tc-desc": "AI सुविधाओं तक पहुँचने के लिए आवश्यक",
+      "tc-accept": "मैं स्वीकार करता हूँ",
+      "tc-text1":
+        "1. डेटा गोपनीयता: सुरक्षित ब्राउज़र ओसीआर के माध्यम से स्मृति में पूरी तरह से संसाधित दस्तावेज़। कोई व्यक्तिगत डेटा सहेजा नहीं गया है।",
+      "tc-text2": "2. कुकीज़: हम आवश्यक सत्र कुकीज़ का उपयोग करते हैं।",
+      "tc-text3":
+        "3. एआई प्रसंस्करण: सुरक्षित LLM APIs का उपयोग किया जा सकता है।",
+      "tc-text4":
+        "4. बाहरी लिंक: हम आधिकारिक सरकारी पोर्टलों के लिंक प्रदान करते हैं।",
+      "wiz-title": "स्मार्ट पात्रता विज़ार्ड",
+      "wiz-desc": "आपकी प्रोफ़ाइल को स्वतः भरने के लिए एआई-संचालित स्कैनिंग।",
+      "wiz-step1": "दस्तावेज़ स्कैन",
+      "wiz-step2": "प्रोफ़ाइल जांचें",
+      "wiz-step3": "योजनाएं देखें",
+      "wiz-upload": "पहचान सत्यापन",
+      "wiz-upload-desc":
+        "सुरक्षित रूप से प्रोफ़ाइल भरने के लिए एक आधिकारिक दस्तावेज़ अपलोड करें।",
+      "wiz-click-upload": "दस्तावेज़ अपलोड करने के लिए क्लिक करें",
+      "wiz-upload-help": "आधार, पैन, या वोटर आईडी का समर्थन करता है",
+      "wiz-btn-next": "आगे बढ़ें",
+      "wiz-verify-title": "अपना विवरण सत्यापित करें",
+      "wiz-verify-desc":
+        "निकाले गए डेटा की समीक्षा करें और छूटी हुई जानकारी भरें।",
+      "wiz-fullname": "पूरा नाम",
+      "wiz-dob": "जन्म तिथि",
+      "wiz-gender": "लिंग",
+      "wiz-category": "सामाजिक श्रेणी",
+      "wiz-income": "पारिवारिक वार्षिक आय",
+      "wiz-btn-back": "पीछे",
+      "wiz-btn-evaluate": "योजनाओं का मूल्यांकन करें",
+      "wiz-success": "पात्रता विश्लेषण पूर्ण",
+      "wiz-match-score": "मैच स्कोर",
+      "wiz-reason": "कारण",
+      "btn-start-wizard": "एआई विज़ार्ड प्रारंभ करें",
     },
     bn: {
       "t-hero-title": "তথ্যের মাধ্যমে নাগরিকদের ক্ষমতায়ন",
@@ -2341,6 +2426,42 @@ const MOCK_DB = {
         "যেকোনো সরকারি পরিষেবা সম্পর্কে জিজ্ঞাসা করুন...",
       "t-chat-disclaimer":
         "*এআই দাবিদ্যাগ: অনুগ্রহ করে অফিসিয়াল পোর্টালে যাচাই করুন।",
+      "tc-title": "পরিষেবার শর্তাবলী এবং কুকি নীতি",
+      "tc-desc":
+        "AI বৈশিষ্ট্য এবং দস্তাবেজ প্রক্রিয়াকরণ অ্যাক্সেস করার জন্য প্রয়োজনীয়",
+      "tc-accept": "আমি স্বীকার করছি",
+      "tc-text1":
+        "1. ডেটা গোপনীয়তা: আপলোড করা যে কোনো নথি (আধার, প্যান) ব্রাউজার OCR-এর মাধ্যমে প্রক্রিয়া করা হয়। কোনো ব্যক্তিগত তথ্য সংরক্ষণ করা হয় না।",
+      "tc-text2":
+        "2. কুকিজ: আমরা আপনার ভাষা পছন্দ বজায় রাখতে কুকিজ ব্যবহার করি।",
+      "tc-text3":
+        "3. এআই প্রক্রিয়াকরণ: এআই এপিআইগুলির মাধ্যমে আপনার অনুসন্ধানগুলি প্রক্রিয়া করা হতে পারে।",
+      "tc-text4":
+        "4. বহিরাগত লিঙ্ক: আমরা অফিসিয়াল সরকারী পোর্টালগুলিতে লিঙ্ক প্রদান করি।",
+      "wiz-title": "স্মার্ট যোগ্যতা উইজার্ড",
+      "wiz-desc": "স্বয়ংক্রিয়ভাবে আপনার প্রোফাইল পূরণ করতে AI স্ক্যানিং।",
+      "wiz-step1": "ডকুমেন্ট স্ক্যান",
+      "wiz-step2": "প্রোফাইল যাচাই",
+      "wiz-step3": "স্কিম দেখুন",
+      "wiz-upload": "পরিচয় যাচাইকরণ",
+      "wiz-upload-desc":
+        "নিরাপদে আপনার প্রোফাইল স্বয়ংক্রিয়ভাবে পূরণ করতে একটি ডকুমেন্ট আপলোড করুন।",
+      "wiz-click-upload": "ডকুমেন্ট আপলোড করতে ক্লিক করুন",
+      "wiz-upload-help": "আধার, প্যান বা ভোটার আইডি সমর্থন করে",
+      "wiz-btn-next": "এগিয়ে যান",
+      "wiz-verify-title": "আপনার বিবরণ যাচাই করুন",
+      "wiz-verify-desc": "উত্তোলিত ডেটা পর্যালোচনা করুন এবং তথ্য পূরণ করুন।",
+      "wiz-fullname": "পুরো নাম",
+      "wiz-dob": "জন্ম তারিখ",
+      "wiz-gender": "লিঙ্গ",
+      "wiz-category": "সামাজিক বিভাগ",
+      "wiz-income": "বার্ষিক আয়",
+      "wiz-btn-back": "পিছনে",
+      "wiz-btn-evaluate": "স্কিম মূল্যায়ন করুন",
+      "wiz-success": "যোগ্যতা বিশ্লেষণ সম্পূর্ণ",
+      "wiz-match-score": "ম্যাচ স্কোর",
+      "wiz-reason": "কারণ",
+      "btn-start-wizard": "এআই উইজার্ড শুরু করুন",
     },
     te: {
       "t-hero-title": "సమాచారంతో పౌరుల సాధికారత",
@@ -2366,6 +2487,41 @@ const MOCK_DB = {
       "t-chat-input-placeholder": "ఏదైనా ప్రభుత్వ సేవ గురించి అడగండి...",
       "t-chat-disclaimer":
         "*AI నిరాకరణ: దయచేసి అధికారిక పోర్టల్‌లో సమాచారాన్ని ధృవీకరించండి.",
+      "tc-title": "సేవా నిబంధనలు & కుకీ విధానం",
+      "tc-desc": "AI ఫీచర్‌లను యాక్సెస్ చేయడానికి అవసరం",
+      "tc-accept": "నేను అంగీకరిస్తున్నాను",
+      "tc-text1":
+        "1. డేటా గోప్యత: అప్‌లోడ్ చేసిన పత్రాలు బ్రౌజర్ OCR ద్వారా ప్రాసెస్ చేయబడతాయి. వ్యక్తిగత డేటా నిల్వ చేయబడదు.",
+      "tc-text2":
+        "2. కుకీలు: మీ ప్రాధాన్యతలను నిర్వహించడానికి మేము కుకీలను ఉపయోగిస్తాము.",
+      "tc-text3":
+        "3. AI ప్రాసెసింగ్: ప్రశ్నలు సురక్షిత LLM ద్వారా ప్రాసెస్ చేయబడతాయి.",
+      "tc-text4":
+        "4. బాహ్య లింక్‌లు: మేము అధికారిక పోర్టల్‌లకు లింక్‌లను అందిస్తాము.",
+      "wiz-title": "స్మార్ట్ అర్హత విజిర్డ్",
+      "wiz-desc": "మీ ప్రొఫైల్‌ను ఆటో-ఫిల్ చేయడానికి AI స్కానింగ్.",
+      "wiz-step1": "పత్రం స్కాన్",
+      "wiz-step2": "ప్రొఫైల్ తనిఖీ",
+      "wiz-step3": "పథకాలను చూడండి",
+      "wiz-upload": "గుర్తింపు ధృవీకరణ",
+      "wiz-upload-desc":
+        "మీ ప్రొఫైల్‌ను ఆటో-ఫిల్ చేయడానికి పత్రాన్ని అప్‌లోడ్ చేయండి.",
+      "wiz-click-upload": "పత్రం అప్‌లోడ్ చేయడానికి క్లిక్ చేయండి",
+      "wiz-upload-help": "ఆధార్, పాన్ లేదా ఓటర్ ఐడీ మద్దతు ఇస్తుంది",
+      "wiz-btn-next": "కొనసాగండి",
+      "wiz-verify-title": "మీ వివరాలను ధృవీకరించండి",
+      "wiz-verify-desc": "డేటాను సమీక్షించండి మరియు సమాచారాన్ని పూరించండి.",
+      "wiz-fullname": "పూర్తి పేరు",
+      "wiz-dob": "పుట్టిన తేదీ",
+      "wiz-gender": "లింగం",
+      "wiz-category": "సామాజిక వర్గం",
+      "wiz-income": "వార్షిక ఆదాయం",
+      "wiz-btn-back": "వెనుకకు",
+      "wiz-btn-evaluate": "పథకాలను అంచనా వేయండి",
+      "wiz-success": "అర్హత విశ్లేషణ పూర్తయింది",
+      "wiz-match-score": "మ్యాచ్ స్కోర్",
+      "wiz-reason": "కారణం",
+      "btn-start-wizard": "AI విజిర్డ్‌ను ప్రారంభించండి",
     },
     mr: {
       "t-hero-title": "माहितीसह नागरिकांचे सक्षमीकरण",
@@ -2391,6 +2547,39 @@ const MOCK_DB = {
       "t-chat-input-placeholder": "कोणत्याही सरकारी सेवेबद्दल विचारा...",
       "t-chat-disclaimer":
         "*एआय अस्वीकरण: कृपया अधिकृत पोर्टलवर माहिती सत्यापित करा.",
+      "tc-title": "सेवा अटी आणि कुकी धोरण",
+      "tc-desc": "AI वैशिष्ट्यांमध्ये प्रवेश करण्यासाठी आवश्यक आहे",
+      "tc-accept": "मी स्वीकारतो",
+      "tc-text1":
+        "1. डेटा गोपनीयता: अपलोड केलेले दस्तऐवज ब्राउझर OCR द्वारे सुरक्षितपणे प्रक्रियेत आणले जातात. कोणताही वैयक्तिक डेटा जतन केलेला नाही.",
+      "tc-text2": "2. कुकीज: आम्ही सत्र कुकीज वापरतो.",
+      "tc-text3": "3. AI प्रक्रिया: AI द्वारे प्रश्न प्रक्रिया केले जाऊ शकतात.",
+      "tc-text4":
+        "4. बाह्य दुवे: आम्ही अधिकृत सरकारी पोर्टल्सचे दुवे प्रदान करतो.",
+      "wiz-title": "स्मार्ट पात्रता विझार्ड",
+      "wiz-desc": "तुमचे प्रोफाइल स्वयं-भरण्यासाठी AI स्कॅनिंग.",
+      "wiz-step1": "दस्तऐवज स्कॅन",
+      "wiz-step2": "प्रोफाइल तपासा",
+      "wiz-step3": "योजना पहा",
+      "wiz-upload": "ओळख पडताळणी",
+      "wiz-upload-desc":
+        "तुमचे प्रोफाइल सुरक्षितपणे भरण्यासाठी दस्तऐवज अपलोड करा.",
+      "wiz-click-upload": "दस्तऐवज अपलोड करण्यासाठी क्लिक करा",
+      "wiz-upload-help": "आधार, पॅन किंवा मतदार ओळखपत्रास समर्थन देते",
+      "wiz-btn-next": "पुढे जा",
+      "wiz-verify-title": "तुमचे तपशील सत्यापित करा",
+      "wiz-verify-desc": "काढलेल्या डेटाचे पुनरावलोकन करा आणि माहिती भरा.",
+      "wiz-fullname": "पूर्ण नाव",
+      "wiz-dob": "जन्म तारीख",
+      "wiz-gender": "लिंग",
+      "wiz-category": "सामाजिक श्रेणी",
+      "wiz-income": "वार्षिक उत्पन्न",
+      "wiz-btn-back": "मागे",
+      "wiz-btn-evaluate": "योजनांचे मूल्यांकन करा",
+      "wiz-success": "पात्रता विश्लेषण पूर्ण",
+      "wiz-match-score": "साम्य गुण",
+      "wiz-reason": "कारण",
+      "btn-start-wizard": "AI विझार्ड सुरू करा",
     },
     ta: {
       "t-hero-title": "தகவலுடன் குடிமக்களுக்கு அதிகாரமளித்தல்",
@@ -2416,6 +2605,39 @@ const MOCK_DB = {
       "t-chat-input-placeholder": "எந்த அரசு சேவை பற்றியும் கேளுங்கள்...",
       "t-chat-disclaimer":
         "*AI மறுப்பு: அதிகாரப்பூர்வ இணையதளத்தில் சரிபார்க்கவும்.",
+      "tc-title": "சேவை விதிமுறைகள் & குக்கீ கொள்கை",
+      "tc-desc": "AI அம்சங்களை அணுக தேவை",
+      "tc-accept": "நான் ஏற்கிறேன்",
+      "tc-text1":
+        "1. தரவு தனியுரிமை: பதிவேற்றப்பட்ட ஆவணங்கள் உலாவி OCR மூலம் பாதுகாப்பாக செயலாக்கப்படும். தனிப்பட்ட தரவு சேமிக்கப்படவில்லை.",
+      "tc-text2":
+        "2. குக்கீகள்: விருப்பங்களை பராமரிக்க குக்கீகளை பயன்படுத்துகிறோம்.",
+      "tc-text3": "3. AI செயலாக்கம்: AI மூலம் கேள்விகள் செயலாக்கப்படும்.",
+      "tc-text4":
+        "4. வெளி இணைப்புகள்: அதிகாரப்பூர்வ தளங்களுக்கான இணைப்புகளை வழங்குகிறோம்.",
+      "wiz-title": "ஸ்மார்ட் தகுதி வழிகாட்டி",
+      "wiz-desc": "உங்கள் சுயவிவரத்தை தானாக நிரப்ப AI ஸ்கேனிங்.",
+      "wiz-step1": "ஆவணம் ஸ்கேன்",
+      "wiz-step2": "சுயவிவரம் சரிபார்க்கவும்",
+      "wiz-step3": "திட்டங்களை காண்க",
+      "wiz-upload": "அடையாள சரிபார்ப்பு",
+      "wiz-upload-desc": "உங்கள் சுயவிவரத்தை நிரப்ப ஆவணத்தை பதிவேற்றவும்.",
+      "wiz-click-upload": "ஆவணத்தை பதிவேற்ற கிளிக் செய்யவும்",
+      "wiz-upload-help": "ஆதார், பான் அல்லது வாக்காளர் ஐடியை ஆதரிக்கிறது",
+      "wiz-btn-next": "தொடரவும்",
+      "wiz-verify-title": "உங்கள் விவரங்களை சரிபார்க்கவும்",
+      "wiz-verify-desc": "தரவை மதிப்பாய்வு செய்து தகவலை நிரப்பவும்.",
+      "wiz-fullname": "முழு பெயர்",
+      "wiz-dob": "பிறந்த தேதி",
+      "wiz-gender": "பாலினம்",
+      "wiz-category": "சமூக வகை",
+      "wiz-income": "ஆண்டு வருமானம்",
+      "wiz-btn-back": "பின்னோக்கி",
+      "wiz-btn-evaluate": "திட்டங்களை மதிப்பிடுக",
+      "wiz-success": "தகுதி பகுப்பாய்வு முடிந்தது",
+      "wiz-match-score": "மதிப்பெண்",
+      "wiz-reason": "காரணம்",
+      "btn-start-wizard": "AI வழிகாட்டியைத் தொடங்கவும்",
     },
   } as Record<string, Record<string, string>>,
 };
@@ -2432,6 +2654,15 @@ const generateAIResponse = (
 
   if (cleanQ.match(/\b(hi|hello|hey|help|start|namaste|hi there)\b/)) {
     return t("t-chat-welcome");
+  }
+
+  // Handle specific contextual wizard queries
+  if (
+    cleanQ.includes("wizard") ||
+    cleanQ.includes("smart") ||
+    cleanQ.includes("eligibility")
+  ) {
+    return `To use the Smart Eligibility Wizard, please return to the main gateway and click "Start AI Wizard". It will securely scan your document and recommend schemes based on your profile!`;
   }
 
   for (const s of MOCK_DB.services) {
@@ -2483,7 +2714,7 @@ const generateAIResponse = (
     }
   }
 
-  return "I’m sorry, that request is outside of our policy and domain expertise.";
+  return "I’m sorry, that request is outside of our policy and domain expertise. Please try asking about Aadhaar, PAN, Voter ID, or farmer schemes.";
 };
 
 // ==========================================
@@ -2558,6 +2789,8 @@ interface AppContextType {
   addMessage: (m: ChatMessage) => void;
   isChatOpen: boolean;
   setChatOpen: (b: boolean) => void;
+  termsAccepted: boolean;
+  setTermsAccepted: (b: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -2658,18 +2891,25 @@ const Navbar: React.FC = () => {
             width="44"
             height="44"
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src =
+                "https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg";
+            }}
           />
           Sahayak Setu
         </a>
         <div className="nav-actions">
-          {appMode === "chat" && (
+          {appMode !== "home" && (
             <button className="nav-text-btn" onClick={() => setAppMode("home")}>
-              Go to Homepage <i className="fa-solid fa-arrow-right"></i>
+              Home <i className="fa-solid fa-house"></i>
             </button>
           )}
-          {appMode === "home" && (
-            <button className="nav-text-btn" onClick={() => setAppMode("chat")}>
-              AI Assistant <i className="fa-solid fa-robot"></i>
+          {appMode !== "wizard" && (
+            <button
+              className="nav-text-btn"
+              onClick={() => setAppMode("wizard")}
+            >
+              Wizard <i className="fa-solid fa-wand-magic-sparkles"></i>
             </button>
           )}
           <button
@@ -2702,24 +2942,68 @@ const Navbar: React.FC = () => {
   );
 };
 
+// ==========================================
+// 8. T&C AND GATEWAY MODULE
+// ==========================================
 const Gateway: React.FC = () => {
-  const { setAppMode } = useAppContext();
+  const { setAppMode, termsAccepted, setTermsAccepted, t, theme } =
+    useAppContext();
+
+  if (!termsAccepted) {
+    return (
+      <div className={`tc-overlay ${theme}`}>
+        <div className="tc-modal">
+          <div className="tc-header">
+            <i className="fa-solid fa-shield-halved"></i>
+            <h2>{t("tc-title")}</h2>
+            <p>{t("tc-desc")}</p>
+          </div>
+          <div className="tc-body">
+            <p>
+              <strong>
+                <i className="fa-solid fa-user-lock"></i> {t("tc-text1")}
+              </strong>
+            </p>
+            <p>{t("tc-text2")}</p>
+            <p>{t("tc-text3")}</p>
+            <p>{t("tc-text4")}</p>
+          </div>
+          <div className="tc-footer">
+            <button
+              className="tc-btn-accept"
+              onClick={() => setTermsAccepted(true)}
+            >
+              <i className="fa-solid fa-file-signature"></i> {t("tc-accept")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="gateway-overlay">
       <div className="gateway-content">
-        <img src="logo.png" alt="Sahayak Setu" className="gateway-logo" />
+        <img
+          src="logo.png"
+          alt="Sahayak Setu"
+          className="gateway-logo"
+          onError={(e) => {
+            e.currentTarget.src =
+              "https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg";
+          }}
+        />
         <h1>Welcome to Sahayak Setu</h1>
         <p>How would you like to explore government services today?</p>
 
         <div className="gateway-buttons">
           <button
             className="gateway-btn primary"
-            onClick={() => setAppMode("chat")}
+            onClick={() => setAppMode("wizard")}
           >
-            <i className="fa-solid fa-robot"></i>
-            <span>Guided AI Assistant</span>
-            <small>Step-by-step chat guidance</small>
+            <i className="fa-solid fa-wand-magic-sparkles"></i>
+            <span>{t("btn-start-wizard")}</span>
+            <small>Auto-fill and find schemes instantly</small>
           </button>
           <button
             className="gateway-btn secondary"
@@ -2729,6 +3013,14 @@ const Gateway: React.FC = () => {
             <span>Self-Service Homepage</span>
             <small>Browse all services manually</small>
           </button>
+          <button
+            className="gateway-btn secondary"
+            onClick={() => setAppMode("chat")}
+          >
+            <i className="fa-solid fa-robot"></i>
+            <span>AI Assistant Chat</span>
+            <small>Ask queries directly</small>
+          </button>
         </div>
       </div>
       <LegalFooter />
@@ -2736,12 +3028,353 @@ const Gateway: React.FC = () => {
   );
 };
 
+// ==========================================
+// 9. ML ELIGIBILITY WIZARD MODULE
+// ==========================================
+const WizardMode: React.FC = () => {
+  const { t, lang } = useAppContext();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [profile, setProfile] = useState<UserProfile>({
+    fullName: "",
+    dob: "",
+    gender: "Male",
+    category: "General",
+    annualIncome: "",
+    aadhaarLast4: "",
+  });
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof UserProfile, string>>
+  >({});
+
+  const [scanState, setScanState] = useState<"idle" | "scanning" | "complete">(
+    "idle",
+  );
+  const [scanProgress, setScanProgress] = useState(0);
+
+  const handleSimulatedScan = () => {
+    setScanState("scanning");
+    setScanProgress(0);
+    const interval = setInterval(() => {
+      setScanProgress((p) => {
+        if (p >= 100) {
+          clearInterval(interval);
+          setScanState("complete");
+          setProfile((prev) => ({
+            ...prev,
+            fullName: "Arjun Kumar",
+            dob: "1982-08-15",
+            aadhaarLast4: "4921",
+          }));
+          return 100;
+        }
+        return p + 5;
+      });
+    }, 100);
+  };
+
+  const validateAndProceed = () => {
+    const newErrors: any = {};
+    if (!profile.fullName || profile.fullName.length < 3)
+      newErrors.fullName = "Valid name required";
+    if (!profile.dob) newErrors.dob = "DOB is required";
+    if (!profile.annualIncome) newErrors.annualIncome = "Income is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+    } else {
+      setErrors({});
+      setStep(3);
+    }
+  };
+
+  const formatCurrency = (val: string) => {
+    const num = val.replace(/\D/g, "");
+    return num ? Number(num).toLocaleString("en-IN") : "";
+  };
+
+  return (
+    <main className="container wizard-container animate-fade-in">
+      {/* Wizard Header / Progress */}
+      <div className="wizard-progress-bar">
+        <div className="wizard-progress-track">
+          <div
+            className="wizard-progress-fill"
+            style={{ width: `${(step - 1) * 50}%` }}
+          ></div>
+        </div>
+        <div className="wizard-steps-container">
+          {[
+            { num: 1, label: t("wiz-step1") },
+            { num: 2, label: t("wiz-step2") },
+            { num: 3, label: t("wiz-step3") },
+          ].map((s) => (
+            <div key={s.num} className="wizard-step-indicator">
+              <div
+                className={`wizard-step-circle ${step >= s.num ? "active" : ""}`}
+              >
+                {step > s.num ? <i className="fa-solid fa-check"></i> : s.num}
+              </div>
+              <span
+                className={`wizard-step-label ${step >= s.num ? "active-text" : ""}`}
+              >
+                {s.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* STEP 1: OCR SCAN */}
+      {step === 1 && (
+        <div className="wizard-card">
+          <div className="wizard-card-header">
+            <h2>{t("wiz-upload")}</h2>
+            <p>{t("wiz-upload-desc")}</p>
+          </div>
+          <div className="wizard-card-body centered">
+            {scanState === "idle" && (
+              <div className="ocr-upload-box" onClick={handleSimulatedScan}>
+                <i className="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                <h3>{t("wiz-click-upload")}</h3>
+                <p>{t("wiz-upload-help")}</p>
+                <div className="ocr-secure-badge">
+                  <i className="fa-solid fa-lock"></i> End-to-end encrypted
+                </div>
+              </div>
+            )}
+            {scanState === "scanning" && (
+              <div className="ocr-scanner-active">
+                <i className="fa-solid fa-expand scanner-icon fa-pulse"></i>
+                <div className="scanner-progress-wrapper">
+                  <div
+                    className="scanner-progress-bar"
+                    style={{ width: `${scanProgress}%` }}
+                  ></div>
+                </div>
+                <p>Extracting data using AI Vision Engine...</p>
+              </div>
+            )}
+            {scanState === "complete" && (
+              <div className="ocr-success">
+                <i className="fa-solid fa-circle-check success-icon"></i>
+                <h3>Extraction Successful</h3>
+                <button
+                  className="wizard-btn-primary"
+                  onClick={() => setStep(2)}
+                >
+                  {t("wiz-btn-next")}{" "}
+                  <i className="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: VERIFY FORM */}
+      {step === 2 && (
+        <div className="wizard-card slide-in-right">
+          <div className="wizard-card-header">
+            <h2>{t("wiz-verify-title")}</h2>
+            <p>{t("wiz-verify-desc")}</p>
+          </div>
+          <div className="wizard-card-body">
+            <div className="wizard-form-grid">
+              <div className="form-group">
+                <label>{t("wiz-fullname")}</label>
+                <input
+                  type="text"
+                  value={profile.fullName}
+                  onChange={(e) =>
+                    setProfile({ ...profile, fullName: e.target.value })
+                  }
+                  className={`form-control ${errors.fullName ? "error" : ""}`}
+                />
+              </div>
+              <div className="form-group">
+                <label>{t("wiz-dob")}</label>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <input
+                    type="date"
+                    value={profile.dob}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) =>
+                      setProfile({ ...profile, dob: e.target.value })
+                    }
+                    className={`form-control ${errors.dob ? "error" : ""}`}
+                  />
+                  <div className="age-display">
+                    <strong>{calculateAge(profile.dob) || "-"}</strong>
+                    <small>YRS</small>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>{t("wiz-gender")}</label>
+                <select
+                  value={profile.gender}
+                  onChange={(e) =>
+                    setProfile({ ...profile, gender: e.target.value })
+                  }
+                  className="form-control"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{t("wiz-category")}</label>
+                <select
+                  value={profile.category}
+                  onChange={(e) =>
+                    setProfile({ ...profile, category: e.target.value })
+                  }
+                  className="form-control"
+                >
+                  <option value="General">General</option>
+                  <option value="OBC">OBC</option>
+                  <option value="SC">SC</option>
+                  <option value="ST">ST</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group income-group">
+              <label>
+                <i className="fa-solid fa-circle-info"></i> {t("wiz-income")}{" "}
+                (₹)
+              </label>
+              <input
+                type="text"
+                value={profile.annualIncome}
+                placeholder="e.g. 2,50,000"
+                onChange={(e) =>
+                  setProfile({
+                    ...profile,
+                    annualIncome: formatCurrency(e.target.value),
+                  })
+                }
+                className={`form-control income-input ${errors.annualIncome ? "error" : ""}`}
+              />
+            </div>
+          </div>
+          <div className="wizard-card-footer">
+            <button className="wizard-btn-secondary" onClick={() => setStep(1)}>
+              {t("wiz-btn-back")}
+            </button>
+            <button className="wizard-btn-primary" onClick={validateAndProceed}>
+              {t("wiz-btn-evaluate")}{" "}
+              <i className="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: RESULTS */}
+      {step === 3 && (
+        <div className="wizard-results-view slide-in-right">
+          <div className="results-hero">
+            <i className="fa-solid fa-trophy"></i>
+            <h2>{t("wiz-success")}</h2>
+            <p>
+              We found optimal schemes based on your profile (Age:{" "}
+              {calculateAge(profile.dob)}, Income: ₹{profile.annualIncome}).
+            </p>
+          </div>
+          <div className="results-grid">
+            {MOCK_DB.categories
+              .flatMap((c) => c.schemes)
+              .map((scheme, idx) => {
+                if (!scheme.evaluate) return null;
+                const match = scheme.evaluate(profile);
+                if (match.score < 20) return null;
+
+                return (
+                  <div key={idx} className="result-match-card">
+                    <div
+                      className={`match-strip ${match.score > 80 ? "high" : "medium"}`}
+                    ></div>
+                    <div className="match-card-layout">
+                      <div className="match-score-section">
+                        <div className="score-circle">
+                          <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle
+                              cx="40"
+                              cy="40"
+                              r="36"
+                              fill="none"
+                              stroke="var(--border-light)"
+                              strokeWidth="6"
+                            />
+                            <circle
+                              cx="40"
+                              cy="40"
+                              r="36"
+                              fill="none"
+                              stroke={
+                                match.score > 80
+                                  ? "var(--brand-green)"
+                                  : "var(--brand-saffron)"
+                              }
+                              strokeWidth="6"
+                              strokeDasharray={2 * Math.PI * 36}
+                              strokeDashoffset={
+                                2 * Math.PI * 36 * (1 - match.score / 100)
+                              }
+                              transform="rotate(-90 40 40)"
+                            />
+                          </svg>
+                          <span className="score-text">{match.score}%</span>
+                        </div>
+                        <span className="score-label">
+                          {t("wiz-match-score")}
+                        </span>
+                      </div>
+                      <div className="match-content-section">
+                        <h3>{scheme.title[lang] || scheme.title.en}</h3>
+                        <p className="scheme-desc">
+                          {scheme.desc[lang] || scheme.desc.en}
+                        </p>
+                        <div className="scheme-benefit-box">
+                          <i className="fa-solid fa-check-circle"></i>{" "}
+                          <span>{scheme.benefit}</span>
+                        </div>
+                        <div className="match-footer">
+                          <small>
+                            <strong>{t("wiz-reason")}:</strong> {match.reason}
+                          </small>
+                          <a
+                            href={scheme.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="wizard-btn-primary small"
+                          >
+                            Apply Now
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </main>
+  );
+};
+
+// ==========================================
+// 10. CHATBOX & VOICE INTEGRATION
+// ==========================================
 const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
   isFullScreen = false,
 }) => {
-  const { chatHistory, addMessage, lang, t } = useAppContext();
+  const { chatHistory, addMessage, lang, t, showToast } = useAppContext();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -2756,6 +3389,7 @@ const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
     addMessage({ id: Date.now().toString(), role: "user", text: cleanInput });
     setInput("");
 
+    // Simulate AI network delay
     setTimeout(() => {
       const responseHtml = generateAIResponse(cleanInput, lang, t);
       addMessage({
@@ -2772,6 +3406,51 @@ const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Voice AI - Speech to Text
+  const handleVoiceInput = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return showToast(
+        "Voice recognition not supported in this browser",
+        "fa-triangle-exclamation",
+      );
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang =
+      lang === "hi"
+        ? "hi-IN"
+        : lang === "bn"
+          ? "bn-IN"
+          : lang === "ta"
+            ? "ta-IN"
+            : "en-US";
+
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    recognition.onerror = () => {
+      setIsRecording(false);
+      showToast("Could not recognize voice", "fa-microphone-slash");
+    };
+    recognition.onend = () => setIsRecording(false);
+
+    recognition.start();
+  };
+
+  // Voice AI - Text to Speech
+  const speakText = (htmlText: string) => {
+    // Strip HTML tags for clean reading
+    const cleanText = htmlText.replace(/<[^>]*>?/gm, "");
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = lang === "hi" ? "hi-IN" : "en-US";
+    synth.speak(utterance);
   };
 
   return (
@@ -2798,6 +3477,15 @@ const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
               ) : (
                 msg.text
               )}
+              {msg.role === "ai" && (
+                <button
+                  onClick={() => speakText(msg.text)}
+                  className="tts-btn"
+                  title="Read Aloud"
+                >
+                  <i className="fa-solid fa-volume-high"></i>
+                </button>
+              )}
             </div>
             {msg.role === "user" && (
               <div className="chat-avatar user">
@@ -2809,6 +3497,13 @@ const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
       </div>
 
       <div className="chat-input-area">
+        <button
+          onClick={handleVoiceInput}
+          className={`mic-btn ${isRecording ? "recording" : ""}`}
+          title="Speak (Voice to Text)"
+        >
+          <i className="fa-solid fa-microphone"></i>
+        </button>
         <textarea
           placeholder={t("t-chat-input-placeholder")}
           value={input}
@@ -2816,7 +3511,11 @@ const ChatBox: React.FC<{ isFullScreen?: boolean }> = ({
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <button onClick={handleSend} disabled={!input.trim()}>
+        <button
+          onClick={handleSend}
+          disabled={!input.trim()}
+          className="send-btn"
+        >
           <i className="fa-solid fa-paper-plane"></i>
         </button>
       </div>
@@ -2857,6 +3556,10 @@ const Hero: React.FC = () => {
           className="hero-logo"
           width="140"
           height="140"
+          onError={(e) => {
+            e.currentTarget.src =
+              "https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg";
+          }}
           {...({ fetchpriority: "high" } as any)}
         />
         <div className="badge">
@@ -2911,7 +3614,6 @@ const ServicesSection: React.FC = () => {
     );
   }, [services, deferredServiceSearch, lang]);
 
-  // Auto-select first matching service when search results change
   useEffect(() => {
     if (filteredServices.length > 0 && deferredServiceSearch.trim() !== "") {
       setSelectedId(filteredServices[0].id);
@@ -3210,7 +3912,7 @@ const SchemeCard = React.memo(
             href={scheme.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="official-link"
+            className="official-link-btn text-link"
           >
             {t("btn-apply")} <i className="fa-solid fa-arrow-right"></i>
           </a>
@@ -3391,6 +4093,9 @@ const AsyncBenefitsSection = React.lazy(
     ),
 );
 
+// ==========================================
+// 11. ROOT APPLICATION COMPONENT & STYLES
+// ==========================================
 export default function App() {
   const [appMode, setAppModeState] = useState<AppMode>("gateway");
   const [lang, setLangState] = useState<Language>(CONFIG.defaultLang);
@@ -3403,6 +4108,7 @@ export default function App() {
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatOpen, setChatOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setChatHistory((prev) => [...prev, msg]);
@@ -3422,6 +4128,7 @@ export default function App() {
         --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
         --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        --shadow-glow: 0 0 0 3px rgba(255, 153, 51, 0.3);
         --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-full: 9999px;
         --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       }
@@ -3429,8 +4136,9 @@ export default function App() {
         --bg-base: #0A0A0A; --bg-surface: #141414; --bg-surface-hover: #1F1F1F;
         --text-primary: #F5F5F5; --text-secondary: #A3A3A3; --text-muted: #737373;
         --border-light: #262626; --border-strong: #404040;
-        --brand-blue: #3B82F6; --brand-saffron-light: rgba(255, 153, 51, 0.1); --brand-green-light: rgba(19, 136, 8, 0.15);
+        --brand-blue: #3B82F6; --brand-saffron-light: rgba(255, 153, 51, 0.15); --brand-green-light: rgba(19, 136, 8, 0.15);
         --shadow-sm: 0 1px 2px rgba(0,0,0,0.8); --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.6); --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.7);
+        --shadow-glow: 0 0 0 3px rgba(255, 153, 51, 0.5);
       }
       @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
       
@@ -3446,15 +4154,25 @@ export default function App() {
       .container { width: 100%; max-width: 1536px; margin: 0 auto; padding: 1.5rem 1rem; }
       @media (min-width: 768px) { .container { padding: 2rem 1.5rem; } }
       
-      /* Gateway */
+      /* Gateway & T&C */
+      .tc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+      .tc-modal { background: var(--bg-surface); border-radius: var(--radius-lg); width: 100%; max-width: 600px; overflow: hidden; box-shadow: var(--shadow-xl); border: 1px solid var(--border-light); animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+      .tc-header { background: var(--brand-blue); padding: 2rem; text-align: center; color: white; }
+      .tc-header i { font-size: 3rem; color: var(--brand-saffron); margin-bottom: 1rem; }
+      .tc-header h2 { color: white; margin-bottom: 0.5rem; }
+      .tc-header p { color: rgba(255,255,255,0.8); font-size: 0.9rem; }
+      .tc-body { padding: 2rem; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; font-size: 0.95rem; color: var(--text-secondary); }
+      .tc-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border-light); background: var(--bg-surface-hover); text-align: center; }
+      .tc-btn-accept { width: 100%; background: var(--brand-saffron); color: white; padding: 1rem; border-radius: var(--radius-md); font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: var(--transition); }
+      .tc-btn-accept:hover { background: #E68A2E; transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
       .gateway-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
-      .gateway-content { text-align: center; max-width: 600px; padding: 2rem; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--border-light); margin-bottom: 2rem; }
+      .gateway-content { text-align: center; max-width: 800px; width: 100%; padding: 2rem; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--border-light); margin-bottom: 2rem; }
       .gateway-logo { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 1.5rem; box-shadow: var(--shadow-md); border: 4px solid var(--bg-base); }
       .gateway-content h1 { font-size: 2rem; margin-bottom: 1rem; }
       .gateway-content p { color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; }
-      .gateway-buttons { display: flex; flex-direction: column; gap: 1rem; }
-      @media (min-width: 600px) { .gateway-buttons { flex-direction: row; } }
-      .gateway-btn { flex: 1; padding: 1.5rem; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: var(--transition); text-decoration: none; border: 2px solid transparent; }
+      .gateway-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+      .gateway-btn { padding: 1.5rem; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: var(--transition); text-decoration: none; border: 2px solid transparent; }
       .gateway-btn i { font-size: 2rem; margin-bottom: 0.5rem; }
       .gateway-btn span { font-weight: 700; font-size: 1.1rem; font-family: 'Poppins', sans-serif; }
       .gateway-btn small { font-size: 0.85rem; opacity: 0.8; }
@@ -3478,17 +4196,24 @@ export default function App() {
       .chat-bubble-wrapper.user { align-self: flex-end; flex-direction: row-reverse; }
       .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-saffron-light); color: var(--brand-saffron); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
       .chat-avatar.user { background: var(--brand-blue); color: #fff; }
-      .chat-bubble { padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.95rem; line-height: 1.5; color: var(--text-primary); }
+      .chat-bubble { padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.95rem; line-height: 1.5; color: var(--text-primary); position: relative; }
       .chat-bubble-wrapper.ai .chat-bubble { background: var(--bg-base); border: 1px solid var(--border-light); border-top-left-radius: 4px; }
       .chat-bubble-wrapper.user .chat-bubble { background: var(--brand-blue); color: #fff; border-top-right-radius: 4px; }
       .chat-bubble a { color: inherit; text-decoration: underline; font-weight: 600; }
-      
-      .chat-input-area { display: flex; gap: 10px; padding: 1rem; border-top: 1px solid var(--border-light); background: var(--bg-surface); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+      .tts-btn { position: absolute; right: -30px; bottom: 0; color: var(--brand-blue); background: var(--brand-saffron-light); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; transition: var(--transition); }
+      .tts-btn:hover { background: var(--brand-saffron); color: white; }
+
+      .chat-input-area { display: flex; gap: 10px; padding: 1rem; border-top: 1px solid var(--border-light); background: var(--bg-surface); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); align-items: center; }
+      .mic-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-base); border: 1px solid var(--border-strong); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; transition: var(--transition); flex-shrink: 0;}
+      .mic-btn:hover { color: var(--brand-blue); border-color: var(--brand-blue); }
+      .mic-btn.recording { background: #FEE2E2; color: #EF4444; border-color: #EF4444; animation: pulseRed 1.5s infinite; }
+      @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
       .chat-input-area textarea { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--border-strong); background: var(--bg-base); color: var(--text-primary); font-family: 'Inter', sans-serif; resize: none; outline: none; transition: var(--transition); }
       .chat-input-area textarea:focus { border-color: var(--brand-saffron); box-shadow: var(--shadow-glow); }
-      .chat-input-area button { width: 48px; height: 48px; border-radius: 50%; background: var(--brand-saffron); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: var(--transition); }
-      .chat-input-area button:hover:not(:disabled) { background: #E68A2E; transform: scale(1.05); }
-      .chat-input-area button:disabled { background: var(--border-strong); cursor: not-allowed; }
+      .chat-input-area .send-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--brand-saffron); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: var(--transition); }
+      .chat-input-area .send-btn:hover:not(:disabled) { background: #E68A2E; transform: scale(1.05); }
+      .chat-input-area .send-btn:disabled { background: var(--border-strong); cursor: not-allowed; }
       
       /* Floating Chat Drawer */
       .fab-btn { position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: var(--brand-saffron); color: #fff; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-xl); z-index: 1000; transition: var(--transition); }
@@ -3508,7 +4233,7 @@ export default function App() {
       .nav-container { max-width: 1536px; margin: 0 auto; padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; }
       @media (min-width: 768px) { .nav-container { padding: 0.8rem 1.5rem; } }
       .logo { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: clamp(1rem, 4vw, 1.5rem); color: var(--text-primary); text-decoration: none;}
-      .brand-logo-small { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-sm); border: 2px solid var(--border-light); transition: transform 0.3s ease; }
+      .brand-logo-small { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-sm); border: 2px solid var(--border-light); transition: transform 0.3s ease; background-color: #fff; }
       @media (min-width: 768px) { .logo { gap: 12px; } .brand-logo-small { width: 44px; height: 44px; } }
       .logo:hover .brand-logo-small { transform: rotate(5deg) scale(1.05); }
       .nav-actions { display: flex; align-items: center; gap: 8px; }
@@ -3526,13 +4251,12 @@ export default function App() {
       .hero { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 3rem 1rem 4rem; background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%); border-radius: var(--radius-lg); margin-bottom: 2rem; border: 1px solid var(--border-light); box-shadow: var(--shadow-md); overflow: hidden; width: 100%; }
       @media (min-width: 768px) { .hero { padding: 4rem 1.5rem 5rem; margin-bottom: 3rem; } }
       .hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
-      .hero-logo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-surface); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-light); margin-bottom: 1.5rem; background-color: #000; animation: floatLogo 4s ease-in-out infinite; will-change: transform, box-shadow; }
+      .hero-logo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-surface); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-light); margin-bottom: 1.5rem; background-color: #fff; animation: floatLogo 4s ease-in-out infinite; will-change: transform, box-shadow; }
       @media (min-width: 768px) { .hero-logo { width: 140px; height: 140px; border-width: 5px; } }
       @keyframes floatLogo { 0%, 100% { transform: translateY(0px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-light); } 50% { transform: translateY(-10px); box-shadow: 0 20px 30px rgba(255, 153, 51, 0.2), 0 0 0 1px var(--border-light); } }
       .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; background: var(--bg-surface); border: 1px solid var(--border-light); color: var(--text-secondary); margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); }
       @media (min-width: 768px) { .badge { font-size: 0.8rem; } }
       .badge-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-green); animation: pulse 2s infinite; }
-      @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(19,136,8,0.7); } 70% { box-shadow: 0 0 0 6px rgba(19,136,8,0); } 100% { box-shadow: 0 0 0 0 rgba(19,136,8,0); } }
       .hero h1 { font-size: clamp(1.8rem, 6vw, 4rem); margin-bottom: 1rem; }
       .hero p { font-size: clamp(0.95rem, 2vw, 1.25rem); color: var(--text-secondary); max-width: 800px; }
       
@@ -3598,8 +4322,8 @@ export default function App() {
       .scheme-desc { font-size: 0.9rem; color: var(--text-secondary); flex-grow: 1; margin-bottom: 1.5rem; }
       .scheme-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 1.2rem; border-top: 1px solid var(--border-light); gap: 8px; flex-wrap: wrap; }
       .benefit-tag { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; color: var(--brand-green); background: var(--brand-green-light); padding: 6px 10px; border-radius: var(--radius-sm); }
-      .official-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-blue); display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: var(--radius-full); transition: var(--transition); text-decoration: none; min-height: 44px; }
-      .official-link:hover { background: var(--bg-base); text-decoration: underline; }
+      .official-link, .text-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-blue); display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: var(--radius-full); transition: var(--transition); text-decoration: none; min-height: 44px; }
+      .text-link:hover { background: var(--bg-base); text-decoration: underline; }
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); grid-column: 1 / -1; }
       .skeleton-loader { background: linear-gradient(90deg, var(--border-light) 25%, var(--border-strong) 50%, var(--border-light) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite linear; }
@@ -3607,6 +4331,88 @@ export default function App() {
       .toast { background: var(--text-primary); color: var(--bg-surface); padding: 12px 24px; border-radius: var(--radius-full); font-size: 0.9rem; font-weight: 500; box-shadow: var(--shadow-xl); display: flex; align-items: center; gap: 10px; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; z-index: 9999; }
       @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
       .loading-fallback { text-align: center; padding: 3rem; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-light); margin-bottom: 3rem; box-shadow: var(--shadow-sm); }
+
+      /* ML WIZARD STYLES */
+      .wizard-container { max-width: 900px; margin: 2rem auto; }
+      .animate-fade-in { animation: fadeInUp 0.4s ease forwards; }
+      .slide-in-right { animation: slideInRight 0.4s ease forwards; }
+      
+      .wizard-progress-bar { position: relative; margin-bottom: 2rem; padding: 0 1rem; }
+      .wizard-progress-track { position: absolute; top: 16px; left: 10%; right: 10%; height: 4px; background: var(--border-light); border-radius: 2px; z-index: 1; }
+      .wizard-progress-fill { height: 100%; background: var(--brand-blue); border-radius: 2px; transition: width 0.5s ease; }
+      .wizard-steps-container { display: flex; justify-content: space-between; position: relative; z-index: 2; }
+      .wizard-step-indicator { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 33%; }
+      .wizard-step-circle { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-surface); border: 3px solid var(--border-strong); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-weight: bold; transition: var(--transition); }
+      .wizard-step-circle.active { background: var(--brand-blue); border-color: var(--brand-blue); color: white; box-shadow: var(--shadow-md); }
+      .wizard-step-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-align: center; }
+      .wizard-step-label.active-text { color: var(--brand-blue); }
+
+      .wizard-card { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--border-light); overflow: hidden; }
+      .wizard-card-header { padding: 2rem; border-bottom: 1px solid var(--border-light); background: var(--bg-surface-hover); text-align: center; }
+      .wizard-card-header h2 { font-size: 1.5rem; color: var(--brand-blue); margin-bottom: 0.5rem; }
+      .wizard-card-header p { color: var(--text-secondary); font-size: 0.95rem; }
+      .wizard-card-body { padding: 2.5rem 2rem; }
+      .wizard-card-body.centered { display: flex; justify-content: center; align-items: center; min-height: 300px; }
+      
+      .ocr-upload-box { width: 100%; max-width: 450px; border: 2px dashed var(--brand-blue); border-radius: var(--radius-lg); padding: 3rem 2rem; text-align: center; cursor: pointer; transition: var(--transition); background: var(--brand-saffron-light); }
+      .ocr-upload-box:hover { border-color: var(--brand-saffron); background: rgba(255, 153, 51, 0.15); transform: translateY(-2px); }
+      .upload-icon { font-size: 3rem; color: var(--brand-blue); margin-bottom: 1rem; }
+      .ocr-upload-box h3 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+      .ocr-secure-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: bold; color: var(--brand-green); margin-top: 1.5rem; background: var(--brand-green-light); padding: 4px 10px; border-radius: 20px; }
+
+      .ocr-scanner-active { text-align: center; width: 100%; max-width: 400px; }
+      .scanner-icon { font-size: 4rem; color: var(--brand-saffron); margin-bottom: 2rem; }
+      .scanner-progress-wrapper { width: 100%; height: 8px; background: var(--border-light); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+      .scanner-progress-bar { height: 100%; background: var(--brand-blue); transition: width 0.1s linear; }
+
+      .ocr-success { text-align: center; width: 100%; max-width: 400px; }
+      .success-icon { font-size: 4rem; color: var(--brand-green); margin-bottom: 1rem; }
+      .wizard-btn-primary { width: 100%; padding: 1rem; background: var(--brand-blue); color: white; font-weight: bold; font-size: 1.1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; gap: 10px; transition: var(--transition); box-shadow: var(--shadow-md); margin-top: 1.5rem; }
+      .wizard-btn-primary:hover { background: #142a47; transform: translateY(-2px); }
+      .wizard-btn-primary.small { width: auto; padding: 0.6rem 1.5rem; font-size: 0.95rem; margin-top: 0; }
+      .wizard-btn-secondary { padding: 1rem 1.5rem; background: transparent; color: var(--text-secondary); font-weight: bold; transition: var(--transition); }
+      .wizard-btn-secondary:hover { color: var(--brand-blue); }
+
+      .wizard-form-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+      @media (min-width: 768px) { .wizard-form-grid { grid-template-columns: 1fr 1fr; } }
+      .form-group { display: flex; flex-direction: column; gap: 6px; }
+      .form-group label { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
+      .form-control { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 1rem; font-family: inherit; color: var(--text-primary); background: var(--bg-base); transition: var(--transition); width: 100%; }
+      .form-control:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(30,58,95,0.2); outline: none; }
+      .form-control.error { border-color: #EF4444; background: #FEF2F2; }
+      .age-display { width: 60px; border-radius: var(--radius-sm); background: var(--bg-surface-hover); border: 1px solid var(--border-light); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--brand-blue); }
+      .age-display strong { font-size: 1.25rem; line-height: 1; }
+      .age-display small { font-size: 0.6rem; font-weight: bold; opacity: 0.8; }
+      .income-group { margin-top: 1rem; background: var(--brand-saffron-light); padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid rgba(255,153,51,0.3); }
+      .income-group label { color: var(--brand-blue); }
+      .income-input { font-size: 1.25rem; font-weight: bold; border-color: var(--brand-saffron); }
+      
+      .wizard-card-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border-light); background: var(--bg-surface-hover); display: flex; justify-content: space-between; align-items: center; }
+
+      .wizard-results-view { display: flex; flex-direction: column; gap: 2rem; }
+      .results-hero { background: var(--brand-blue); color: white; padding: 3rem 2rem; border-radius: var(--radius-lg); text-align: center; position: relative; overflow: hidden; box-shadow: var(--shadow-xl); }
+      .results-hero i { font-size: 4rem; color: var(--brand-saffron); margin-bottom: 1rem; }
+      .results-hero h2 { color: white; margin-bottom: 0.5rem; font-size: 2rem; }
+      .results-hero p { color: rgba(255,255,255,0.8); max-width: 600px; margin: 0 auto; font-size: 1.1rem; }
+      
+      .results-grid { display: flex; flex-direction: column; gap: 1.5rem; }
+      .result-match-card { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 1px solid var(--border-light); overflow: hidden; position: relative; }
+      .match-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+      .match-strip.high { background: var(--brand-green); }
+      .match-strip.medium { background: var(--brand-saffron); }
+      .match-card-layout { display: flex; flex-direction: column; padding: 1.5rem; padding-left: 2rem; }
+      @media (min-width: 768px) { .match-card-layout { flex-direction: row; align-items: center; gap: 2rem; } }
+      .match-score-section { display: flex; flex-direction: column; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light); }
+      @media (min-width: 768px) { .match-score-section { padding-bottom: 0; border-bottom: none; border-right: 1px solid var(--border-light); padding-right: 2rem; } }
+      .score-circle { position: relative; width: 80px; height: 80px; display: flex; justify-content: center; align-items: center; }
+      .score-text { position: absolute; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); }
+      .score-label { font-size: 0.75rem; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-top: 0.5rem; }
+      .match-content-section { flex: 1; padding-top: 1rem; }
+      @media (min-width: 768px) { .match-content-section { padding-top: 0; } }
+      .match-content-section h3 { font-size: 1.25rem; color: var(--brand-blue); margin-bottom: 0.5rem; }
+      .scheme-benefit-box { background: var(--brand-green-light); color: var(--brand-green); padding: 8px 12px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.9rem; margin-bottom: 1rem; }
+      .match-footer { display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border-light); }
+      @media (min-width: 600px) { .match-footer { flex-direction: row; justify-content: space-between; align-items: center; } }
     `}</style>
   );
 
@@ -3639,6 +4445,8 @@ export default function App() {
         addMessage,
         isChatOpen,
         setChatOpen,
+        termsAccepted,
+        setTermsAccepted,
       }}
     >
       <ErrorBoundary>
@@ -3685,6 +4493,15 @@ export default function App() {
                 <AsyncBenefitsSection />
               </Suspense>
             </main>
+            <FloatingChat />
+            <LegalFooter />
+          </div>
+        )}
+
+        {appMode === "wizard" && (
+          <div className="main-wrapper">
+            <Navbar />
+            <WizardMode />
             <FloatingChat />
             <LegalFooter />
           </div>
