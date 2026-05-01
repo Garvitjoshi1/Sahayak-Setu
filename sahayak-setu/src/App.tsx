@@ -585,7 +585,7 @@ const MOCK_DB = {
           "e-Verify the return using Aadhaar OTP.",
         ],
         hi: [
-          "पैन का उपयोग करके ई-फाइलिंग पोर्टल पर लॉग इन करें।",
+          "पैन का उपयोग करके ई-फाइलिंग पोर्टल पर लॉग capइन करें।",
           "'ई-फाइल' > 'आयकर रिटर्न' पर जाएं।",
           "आकलन वर्ष और आईटीआर फॉर्म चुनें।",
           "फॉर्म 16 का उपयोग करके डेटा को मान्य करें।",
@@ -870,7 +870,7 @@ const MOCK_DB = {
           "పన్ను చెల్లించండి.",
           "RTO ధృవీకరిస్తుంది.",
           "నంబర్ కేటాయించబడుతుంది.",
-          "డిజిటల్ RC డౌన్‌లోడ్ చేయండి.",
+          "డిজিటల్ RC డౌన్‌లోడ్ చేయండి.",
           "స్మార్ట్ కార్డ్ పోస్ట్ చేయబడుతుంది.",
         ],
         mr: [
@@ -1585,7 +1585,7 @@ const MOCK_DB = {
           },
           benefit: "Crop Insurance",
           url: "https://pmfby.gov.in/",
-          evaluate: (p: UserProfile) => {
+          evaluate: (_p: UserProfile) => {
             return {
               score: 80,
               reason: "Universal scheme for all farmers regardless of income.",
@@ -1611,7 +1611,7 @@ const MOCK_DB = {
           },
           benefit: "Free Soil Testing",
           url: "https://soilhealth.dac.gov.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 90,
             reason: "Applicable for all landholding farmers.",
           }),
@@ -1714,7 +1714,7 @@ const MOCK_DB = {
           },
           benefit: "Free E-Learning",
           url: "https://pmevidya.education.gov.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 100,
             reason: "Open digital access for all citizens.",
           }),
@@ -1818,7 +1818,7 @@ const MOCK_DB = {
           },
           benefit: "Subsidized Care",
           url: "https://nhm.gov.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 90,
             reason: "Universal accessibility for rural/urban areas.",
           }),
@@ -1842,7 +1842,7 @@ const MOCK_DB = {
           },
           benefit: "Free Consultation",
           url: "https://esanjeevaniopd.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 100,
             reason: "Open digital platform for all citizens.",
           }),
@@ -2015,7 +2015,7 @@ const MOCK_DB = {
           },
           benefit: "High Interest",
           url: "https://www.indiapost.gov.in/Financial/Pages/Content/Sukanya-Samriddhi-Account.aspx",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 85,
             reason: "Applicable if you are a parent of a girl child under 10.",
           }),
@@ -2092,7 +2092,7 @@ const MOCK_DB = {
           },
           benefit: "Toilet Subsidy",
           url: "https://swachhbharatmission.gov.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 80,
             reason:
               "Available to eligible households without sanitation facilities.",
@@ -2131,7 +2131,7 @@ const MOCK_DB = {
           },
           benefit: "Zero Balance A/C",
           url: "https://pmjdy.gov.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 100,
             reason:
               "Universal scheme open to all citizens without a bank account.",
@@ -2188,7 +2188,7 @@ const MOCK_DB = {
           },
           benefit: "Up to ₹10L Loan",
           url: "https://www.mudra.org.in/",
-          evaluate: () => ({
+          evaluate: (_p: UserProfile) => ({
             score: 85,
             reason:
               "Applicable if looking to start or expand a micro-enterprise.",
