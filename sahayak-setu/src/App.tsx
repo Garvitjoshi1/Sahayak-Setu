@@ -29,7 +29,7 @@ const CONFIG = {
 // ==========================================
 // 1.5. SECURITY UTILITIES
 // ==========================================
-export const sanitizeInput = (input: string): string => {
+const sanitizeInput = (input: string): string => {
   const map: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
@@ -42,7 +42,7 @@ export const sanitizeInput = (input: string): string => {
   return input.replace(reg, (match) => map[match]);
 };
 
-export function useDebounce<T>(value: T, delay: number): T {
+function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedValue(value), delay);
@@ -51,12 +51,15 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function useDynamicSEO(
+function useDynamicSEO(
   title: string,
   description: string,
   schemaData?: any,
+  lang: string = "en",
+  keywords: string[] = [],
 ) {
   useEffect(() => {
+    // 1. Basic Title & Meta
     document.title = `${title} | Sahayak Setu`;
     const setMeta = (name: string, content: string, isProperty = false) => {
       const attr = isProperty ? `property="${name}"` : `name="${name}"`;
@@ -72,13 +75,54 @@ export function useDynamicSEO(
     };
 
     setMeta("description", description);
+
+    // 2. Dynamic Keywords Generation
+    const baseKeywords = [
+      "Government Services",
+      "India Schemes",
+      "Sahayak Setu",
+      "Online Portal",
+      "Apply Online",
+    ];
+    const allKeywords = [...new Set([...baseKeywords, ...keywords])].join(", ");
+    setMeta("keywords", allKeywords);
+
+    // 3. Open Graph & Twitter Cards
     setMeta("og:title", title, true);
     setMeta("og:description", description, true);
     setMeta("og:type", "website", true);
+    setMeta("og:site_name", "Sahayak Setu", true);
     setMeta("twitter:card", "summary_large_image");
     setMeta("twitter:title", title);
     setMeta("twitter:description", description);
 
+    // 4. Canonical URL & Hreflang (Multilingual SEO)
+    const currentUrl = window.location.href.split("?")[0]; // Strip query params
+
+    let canonical = document.querySelector(`link[rel="canonical"]`);
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", currentUrl);
+
+    // Clean up old hreflang tags
+    document
+      .querySelectorAll('link[rel="alternate"][hreflang]')
+      .forEach((el) => el.remove());
+
+    // Add hreflang for supported languages
+    const supportedLangs = ["en", "hi", "bn", "te", "mr", "ta"];
+    supportedLangs.forEach((l) => {
+      const link = document.createElement("link");
+      link.setAttribute("rel", "alternate");
+      link.setAttribute("hreflang", l === "en" ? "en-IN" : `${l}-IN`);
+      link.setAttribute("href", `${currentUrl}?lang=${l}`);
+      document.head.appendChild(link);
+    });
+
+    // 5. Advanced JSON-LD Schema Integration
     let scriptEl = document.getElementById("seo-json-ld");
     if (!scriptEl) {
       scriptEl = document.createElement("script");
@@ -92,10 +136,20 @@ export function useDynamicSEO(
       "@graph": [
         {
           "@type": "WebSite",
+          "@id": "https://sahayaksetu.gov.in/#website",
           name: "Sahayak Setu",
           url: "https://sahayaksetu.gov.in",
           description:
-            "Step-by-step procedures for Indian government services.",
+            "A unified portal for Indian government services, schemes, and step-by-step application guides.",
+          inLanguage: lang,
+          publisher: {
+            "@type": "Organization",
+            name: "Sahayak Setu Initiative",
+            logo: {
+              "@type": "ImageObject",
+              url: "https://sahayaksetu.gov.in/logo.png",
+            },
+          },
         },
       ],
     };
@@ -105,7 +159,7 @@ export function useDynamicSEO(
     }
 
     scriptEl.textContent = JSON.stringify(baseSchema);
-  }, [title, description, schemaData]);
+  }, [title, description, schemaData, lang, keywords]);
 }
 
 // ==========================================
@@ -3032,8 +3086,8 @@ const Gateway: React.FC = () => {
 // 9. ML ELIGIBILITY WIZARD MODULE
 // ==========================================
 const WizardMode: React.FC = () => {
-  const { t, lang } = useAppContext();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const { t, lang, setAppMode } = useAppContext();
+  const [step, setStep] = useState<1 | 2>(1);
   const [profile, setProfile] = useState<UserProfile>({
     fullName: "",
     dob: "",
@@ -3046,32 +3100,6 @@ const WizardMode: React.FC = () => {
     Partial<Record<keyof UserProfile, string>>
   >({});
 
-  const [scanState, setScanState] = useState<"idle" | "scanning" | "complete">(
-    "idle",
-  );
-  const [scanProgress, setScanProgress] = useState(0);
-
-  const handleSimulatedScan = () => {
-    setScanState("scanning");
-    setScanProgress(0);
-    const interval = setInterval(() => {
-      setScanProgress((p) => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setScanState("complete");
-          setProfile((prev) => ({
-            ...prev,
-            fullName: "Arjun Kumar",
-            dob: "1982-08-15",
-            aadhaarLast4: "4921",
-          }));
-          return 100;
-        }
-        return p + 5;
-      });
-    }, 100);
-  };
-
   const validateAndProceed = () => {
     const newErrors: any = {};
     if (!profile.fullName || profile.fullName.length < 3)
@@ -3083,7 +3111,7 @@ const WizardMode: React.FC = () => {
       setErrors(newErrors);
     } else {
       setErrors({});
-      setStep(3);
+      setStep(2);
     }
   };
 
@@ -3099,16 +3127,19 @@ const WizardMode: React.FC = () => {
         <div className="wizard-progress-track">
           <div
             className="wizard-progress-fill"
-            style={{ width: `${(step - 1) * 50}%` }}
+            style={{ width: `${(step - 1) * 100}%` }}
           ></div>
         </div>
         <div className="wizard-steps-container">
           {[
-            { num: 1, label: t("wiz-step1") },
-            { num: 2, label: t("wiz-step2") },
-            { num: 3, label: t("wiz-step3") },
+            { num: 1, label: t("wiz-step2") },
+            { num: 2, label: t("wiz-step3") },
           ].map((s) => (
-            <div key={s.num} className="wizard-step-indicator">
+            <div
+              key={s.num}
+              className="wizard-step-indicator"
+              style={{ width: "50%" }}
+            >
               <div
                 className={`wizard-step-circle ${step >= s.num ? "active" : ""}`}
               >
@@ -3124,59 +3155,12 @@ const WizardMode: React.FC = () => {
         </div>
       </div>
 
-      {/* STEP 1: OCR SCAN */}
+      {/* STEP 1: VERIFY FORM */}
       {step === 1 && (
-        <div className="wizard-card">
-          <div className="wizard-card-header">
-            <h2>{t("wiz-upload")}</h2>
-            <p>{t("wiz-upload-desc")}</p>
-          </div>
-          <div className="wizard-card-body centered">
-            {scanState === "idle" && (
-              <div className="ocr-upload-box" onClick={handleSimulatedScan}>
-                <i className="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                <h3>{t("wiz-click-upload")}</h3>
-                <p>{t("wiz-upload-help")}</p>
-                <div className="ocr-secure-badge">
-                  <i className="fa-solid fa-lock"></i> End-to-end encrypted
-                </div>
-              </div>
-            )}
-            {scanState === "scanning" && (
-              <div className="ocr-scanner-active">
-                <i className="fa-solid fa-expand scanner-icon fa-pulse"></i>
-                <div className="scanner-progress-wrapper">
-                  <div
-                    className="scanner-progress-bar"
-                    style={{ width: `${scanProgress}%` }}
-                  ></div>
-                </div>
-                <p>Extracting data using AI Vision Engine...</p>
-              </div>
-            )}
-            {scanState === "complete" && (
-              <div className="ocr-success">
-                <i className="fa-solid fa-circle-check success-icon"></i>
-                <h3>Extraction Successful</h3>
-                <button
-                  className="wizard-btn-primary"
-                  onClick={() => setStep(2)}
-                >
-                  {t("wiz-btn-next")}{" "}
-                  <i className="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* STEP 2: VERIFY FORM */}
-      {step === 2 && (
         <div className="wizard-card slide-in-right">
           <div className="wizard-card-header">
             <h2>{t("wiz-verify-title")}</h2>
-            <p>{t("wiz-verify-desc")}</p>
+            <p>Please enter your details below to find eligible schemes.</p>
           </div>
           <div className="wizard-card-body">
             <div className="wizard-form-grid">
@@ -3193,7 +3177,13 @@ const WizardMode: React.FC = () => {
               </div>
               <div className="form-group">
                 <label>{t("wiz-dob")}</label>
-                <div style={{ display: "flex", gap: "10px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    alignItems: "stretch",
+                  }}
+                >
                   <input
                     type="date"
                     value={profile.dob}
@@ -3202,6 +3192,7 @@ const WizardMode: React.FC = () => {
                       setProfile({ ...profile, dob: e.target.value })
                     }
                     className={`form-control ${errors.dob ? "error" : ""}`}
+                    style={{ flex: 1 }}
                   />
                   <div className="age-display">
                     <strong>{calculateAge(profile.dob) || "-"}</strong>
@@ -3260,7 +3251,10 @@ const WizardMode: React.FC = () => {
             </div>
           </div>
           <div className="wizard-card-footer">
-            <button className="wizard-btn-secondary" onClick={() => setStep(1)}>
+            <button
+              className="wizard-btn-secondary"
+              onClick={() => setAppMode("gateway")}
+            >
               {t("wiz-btn-back")}
             </button>
             <button className="wizard-btn-primary" onClick={validateAndProceed}>
@@ -3271,8 +3265,8 @@ const WizardMode: React.FC = () => {
         </div>
       )}
 
-      {/* STEP 3: RESULTS */}
-      {step === 3 && (
+      {/* STEP 2: RESULTS */}
+      {step === 2 && (
         <div className="wizard-results-view slide-in-right">
           <div className="results-hero">
             <i className="fa-solid fa-trophy"></i>
@@ -3627,17 +3621,44 @@ const ServicesSection: React.FC = () => {
     if (!activeService) return null;
     return {
       "@type": "HowTo",
+      "@id": `https://sahayaksetu.gov.in/services/${activeService.id}#howto`,
       name: activeService.name[lang] || activeService.name.en,
-      description: `Step-by-step guide to ${activeService.name[lang] || activeService.name.en}`,
+      description: `Official step-by-step guide to ${activeService.name[lang] || activeService.name.en} in India.`,
+      totalTime: activeService.meta.time.en,
+      estimatedCost: {
+        "@type": "MonetaryAmount",
+        currency: "INR",
+        value: activeService.meta.cost.en.replace(/[^0-9]/g, "") || "0",
+      },
       step: (activeService.steps[lang] || activeService.steps.en || []).map(
         (step, index) => ({
           "@type": "HowToStep",
           position: index + 1,
-          text: step,
+          itemListElement: [
+            {
+              "@type": "HowToDirection",
+              text: step,
+            },
+          ],
         }),
       ),
     };
   }, [activeService, lang]);
+
+  // Generate dynamic keywords based on the active service
+  const serviceKeywords = useMemo(() => {
+    if (!activeService) return [];
+    const nameStr = activeService.name.en;
+    // Extract meaningful words from the title
+    const basicKeywords = nameStr.split(" ").filter((w) => w.length > 3);
+    return [
+      nameStr,
+      ...basicKeywords,
+      "Apply Online",
+      "Application Process",
+      "Documents Required",
+    ];
+  }, [activeService]);
 
   useDynamicSEO(
     activeService
@@ -3645,6 +3666,8 @@ const ServicesSection: React.FC = () => {
       : t("t-sec1-title"),
     t("t-hero-desc"),
     howToSchema,
+    lang,
+    serviceKeywords,
   );
 
   if (loading) {
@@ -4306,24 +4329,29 @@ export default function App() {
       .cat-btn.active { background: var(--brand-saffron-light); color: var(--brand-saffron); border-color: rgba(255,153,51,0.2); font-weight: 600; }
       .cat-btn i { width: 20px; text-align: center; }
       
-      .schemes-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; align-items: start; width: 100%; }
-      @media (min-width: 640px) { .schemes-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } }
-      @media (min-width: 768px) { .schemes-grid { gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
-      .scheme-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; height: 100%; transition: var(--transition); position: relative; overflow: hidden; opacity: 0; animation: fadeInUp 0.5s ease forwards; width: 100%; }
-      @media (min-width: 768px) { .scheme-card { padding: 1.5rem; } }
-      .scheme-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--brand-saffron), var(--brand-green)); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; }
-      .scheme-card:hover { box-shadow: var(--shadow-xl); transform: translateY(-4px); border-color: var(--border-strong); }
+      .schemes-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: stretch; width: 100%; }
+      @media (min-width: 640px) { .schemes-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); } }
+      @media (min-width: 768px) { .schemes-grid { gap: 2rem; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); } }
+      
+      .scheme-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; transition: var(--transition); position: relative; overflow: hidden; opacity: 0; animation: fadeInUp 0.5s ease forwards; box-sizing: border-box; }
+      .scheme-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--brand-saffron), var(--brand-green)); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; }
+      .scheme-card:hover { box-shadow: var(--shadow-xl); transform: translateY(-6px); border-color: var(--border-strong); }
       .scheme-card:hover::after { transform: scaleX(1); }
-      .scheme-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 10px;}
-      .scheme-header h3 { font-size: 1.1rem; color: var(--text-primary); }
-      @media (min-width: 768px) { .scheme-header h3 { font-size: 1.15rem; } }
-      .share-btn { width: 44px; height: 44px; border-radius: var(--radius-full); background: var(--bg-base); color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: var(--transition); border: 1px solid var(--border-light); flex-shrink: 0; }
-      .share-btn:hover { background: var(--bg-surface-hover); color: var(--brand-saffron); border-color: var(--border-strong); }
-      .scheme-desc { font-size: 0.9rem; color: var(--text-secondary); flex-grow: 1; margin-bottom: 1.5rem; }
-      .scheme-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 1.2rem; border-top: 1px solid var(--border-light); gap: 8px; flex-wrap: wrap; }
-      .benefit-tag { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; color: var(--brand-green); background: var(--brand-green-light); padding: 6px 10px; border-radius: var(--radius-sm); }
-      .official-link, .text-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-blue); display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: var(--radius-full); transition: var(--transition); text-decoration: none; min-height: 44px; }
-      .text-link:hover { background: var(--bg-base); text-decoration: underline; }
+      
+      .scheme-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 12px;}
+      .scheme-header h3 { font-size: 1.15rem; color: var(--text-primary); font-weight: 700; line-height: 1.4; margin: 0; flex: 1; }
+      @media (min-width: 768px) { .scheme-header h3 { font-size: 1.25rem; } }
+      
+      .share-btn { width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--bg-base); color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: var(--transition); border: 1px solid var(--border-light); flex-shrink: 0; cursor: pointer; }
+      .share-btn:hover { background: var(--brand-saffron-light); color: var(--brand-saffron); border-color: var(--brand-saffron); }
+      
+      .scheme-desc { font-size: 0.95rem; color: var(--text-secondary); flex-grow: 1; margin-bottom: 1.5rem; line-height: 1.6; }
+      
+      .scheme-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 1.25rem; border-top: 1px solid var(--border-light); gap: 12px; flex-wrap: wrap; margin-top: auto; }
+      .benefit-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: var(--brand-green); background: var(--brand-green-light); padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid rgba(19, 136, 8, 0.2); }
+      
+      .official-link, .text-link { font-size: 0.9rem; font-weight: 600; color: #fff; background: var(--brand-blue); display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius-full); transition: var(--transition); text-decoration: none; border: 1px solid transparent; }
+      .text-link:hover { background: #142a47; transform: translateY(-2px); box-shadow: var(--shadow-md); }
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); grid-column: 1 / -1; }
       .skeleton-loader { background: linear-gradient(90deg, var(--border-light) 25%, var(--border-strong) 50%, var(--border-light) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite linear; }
@@ -4360,6 +4388,19 @@ export default function App() {
       .ocr-upload-box h3 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
       .ocr-secure-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: bold; color: var(--brand-green); margin-top: 1.5rem; background: var(--brand-green-light); padding: 4px 10px; border-radius: 20px; }
 
+      .ocr-upload-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 1.5rem; }
+      .manual-entry-divider { position: relative; width: 100%; max-width: 450px; text-align: center; margin: 0.5rem 0; }
+      .manual-entry-divider::before { content: ''; position: absolute; left: 0; top: 50%; width: 40%; height: 1px; background: var(--border-strong); }
+      .manual-entry-divider::after { content: ''; position: absolute; right: 0; top: 50%; width: 40%; height: 1px; background: var(--border-strong); }
+      .manual-entry-divider span { background: var(--bg-surface); padding: 0 10px; color: var(--text-muted); font-size: 0.85rem; font-weight: bold; position: relative; z-index: 1; }
+      .manual-btn { width: 100%; max-width: 450px; border: 1px solid var(--border-strong); display: flex; justify-content: center; gap: 8px; align-items: center; border-radius: var(--radius-md); background: var(--bg-base); }
+      .manual-btn:hover { border-color: var(--brand-blue); background: var(--bg-surface-hover); }
+
+      .scanning-image-preview { position: relative; width: 100%; max-width: 300px; height: 180px; margin: 0 auto 1.5rem; border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--brand-blue); box-shadow: var(--shadow-md); background: #000; }
+      .scanning-image-preview img { width: 100%; height: 100%; object-fit: contain; filter: brightness(0.8); }
+      .scan-laser-line { position: absolute; left: 0; right: 0; height: 3px; background: var(--brand-saffron); box-shadow: 0 0 10px var(--brand-saffron); animation: laserScan 2s ease-in-out infinite; z-index: 2; }
+      @keyframes laserScan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+
       .ocr-scanner-active { text-align: center; width: 100%; max-width: 400px; }
       .scanner-icon { font-size: 4rem; color: var(--brand-saffron); margin-bottom: 2rem; }
       .scanner-progress-wrapper { width: 100%; height: 8px; background: var(--border-light); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
@@ -4377,10 +4418,10 @@ export default function App() {
       @media (min-width: 768px) { .wizard-form-grid { grid-template-columns: 1fr 1fr; } }
       .form-group { display: flex; flex-direction: column; gap: 6px; }
       .form-group label { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
-      .form-control { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 1rem; font-family: inherit; color: var(--text-primary); background: var(--bg-base); transition: var(--transition); width: 100%; }
+      .form-control { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 1rem; font-family: inherit; color: var(--text-primary); background: var(--bg-base); transition: var(--transition); width: 100%; box-sizing: border-box; min-width: 0; }
       .form-control:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(30,58,95,0.2); outline: none; }
       .form-control.error { border-color: #EF4444; background: #FEF2F2; }
-      .age-display { width: 60px; border-radius: var(--radius-sm); background: var(--bg-surface-hover); border: 1px solid var(--border-light); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--brand-blue); }
+      .age-display { width: 70px; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-surface-hover); border: 1px solid var(--border-light); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--brand-blue); box-sizing: border-box; }
       .age-display strong { font-size: 1.25rem; line-height: 1; }
       .age-display small { font-size: 0.6rem; font-weight: bold; opacity: 0.8; }
       .income-group { margin-top: 1rem; background: var(--brand-saffron-light); padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid rgba(255,153,51,0.3); }
