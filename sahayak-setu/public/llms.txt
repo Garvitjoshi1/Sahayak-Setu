@@ -1,0 +1,19 @@
+Sahayak Setu
+
+Empowering Indian Citizens with Information and AI.
+
+Sahayak Setu is a smart eligibility portal designed to help citizens of India discover, verify, and apply for government schemes, services, and subsidies.
+
+Features
+
+Smart Eligibility Wizard: An AI-powered tool that analyzes demographic data (Age, Income, Category) to recommend highly matching government schemes like PM-KISAN, Ayushman Bharat, and PMAY.
+
+Multilingual Support: Available in English, Hindi, Bengali, Telugu, Marathi, and Tamil.
+
+Step-by-Step Guides: Detailed instructions for applying for core documents including Aadhaar, PAN, Voter ID, and Passports.
+
+AI Assistant: A built-in Retrieval-Augmented Generation (RAG) chatbot that answers citizen queries regarding government policies.
+
+Official Links
+
+Home: https://sahayak-setu-ten.vercel.app/

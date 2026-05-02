@@ -3649,7 +3649,6 @@ const ServicesSection: React.FC = () => {
   const serviceKeywords = useMemo(() => {
     if (!activeService) return [];
     const nameStr = activeService.name.en;
-    // Extract meaningful words from the title
     const basicKeywords = nameStr.split(" ").filter((w) => w.length > 3);
     return [
       nameStr,
@@ -4120,9 +4119,29 @@ const AsyncBenefitsSection = React.lazy(
 // 11. ROOT APPLICATION COMPONENT & STYLES
 // ==========================================
 export default function App() {
-  const [appMode, setAppModeState] = useState<AppMode>("gateway");
-  const [lang, setLangState] = useState<Language>(CONFIG.defaultLang);
-  const [theme, setThemeState] = useState<Theme>(CONFIG.defaultTheme);
+  // Initialize state from localStorage for persistence
+  const getInitialMode = (): AppMode => {
+    const saved = localStorage.getItem("sahayak_appMode");
+    return (saved as AppMode) || "gateway";
+  };
+  const getInitialLang = (): Language => {
+    const saved = localStorage.getItem("sahayak_lang");
+    return (saved as Language) || CONFIG.defaultLang;
+  };
+  const getInitialTheme = (): Theme => {
+    const saved = localStorage.getItem("sahayak_theme");
+    return (saved as Theme) || CONFIG.defaultTheme;
+  };
+  const getInitialTerms = (): boolean => {
+    return localStorage.getItem("sahayak_termsAccepted") === "true";
+  };
+
+  const [appMode, setAppModeState] = useState<AppMode>(getInitialMode);
+  const [lang, setLangState] = useState<Language>(getInitialLang);
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const [termsAccepted, setTermsAcceptedState] =
+    useState<boolean>(getInitialTerms);
+
   const [toast, setToast] = useState<{
     msg: string;
     icon: string;
@@ -4131,7 +4150,30 @@ export default function App() {
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatOpen, setChatOpen] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Sync state changes to localStorage
+  useEffect(() => {
+    localStorage.setItem("sahayak_appMode", appMode);
+  }, [appMode]);
+
+  useEffect(() => {
+    localStorage.setItem("sahayak_lang", lang);
+  }, [lang]);
+
+  useEffect(() => {
+    localStorage.setItem("sahayak_theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  const setTermsAccepted = (accepted: boolean) => {
+    setTermsAcceptedState(accepted);
+    localStorage.setItem("sahayak_termsAccepted", String(accepted));
+  };
+
+  // Ensure theme is applied on initial load
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, []);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setChatHistory((prev) => [...prev, msg]);
